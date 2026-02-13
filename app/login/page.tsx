@@ -37,9 +37,9 @@ export default function LoginPage() {
     try {
       await authing.social.authorize(AUTHING_PROVIDER_GITHUB, {
         popup: true,
-        onSuccess: async (user: { token?: string; id_token?: string; [key: string]: unknown }) => {
+        onSuccess: async (user) => {
           const token = user?.token ?? user?.id_token;
-          if (!token) {
+          if (token == null || token === "") {
             setError("登录成功但未获取到 token");
             setLoading(false);
             return;
