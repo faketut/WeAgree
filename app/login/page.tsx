@@ -60,8 +60,8 @@ export default function LoginPage() {
           setMessage(e instanceof Error ? e.message : "Login failed");
         }
       },
-      onError: (data: { message?: string }) => {
-        if (mounted.current) setMessage(data?.message || "QR error");
+      onError: (message: string) => {
+        if (mounted.current) setMessage(message || "QR error");
       },
       onExpired: () => {
         if (mounted.current) {
