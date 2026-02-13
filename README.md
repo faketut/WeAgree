@@ -26,6 +26,7 @@ npm install
 
    - `NEXT_PUBLIC_SUPABASE_URL` – Project URL (Settings → API)
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY` – anon/public key (Settings → API)
+   - **Authing (PC scan code login):** `NEXT_PUBLIC_AUTHING_APP_ID` and `NEXT_PUBLIC_AUTHING_APP_HOST` (from [Authing Console](https://console.authing.cn) → your app / user pool domain, e.g. `https://xxx.authing.cn`)
 
 3. Run the database migration:
 
@@ -37,22 +38,13 @@ npm install
    supabase db push
    ```
 
-### 3. Set up Authing (GitHub 登录)
-
-1. 在 [GitHub Developer Settings](https://github.com/settings/developers) 创建 OAuth App，获取 **Client ID** 和 **Client Secret**。Authorization callback URL 填 Authing 提供的回调地址（或在 Authing 控制台查看）。
-2. 在 [Authing 控制台](https://console.authing.cn) → **社会化登录** → **GitHub**，填入 Client ID、Client Secret 及回调配置。
-3. 在 **应用** 中获取应用的 **应用 ID**，填入 `.env.local`：`NEXT_PUBLIC_AUTHING_APP_ID=你的应用ID`
-4. 在应用的 **注册登录** → **社会化登录** 中开启「GitHub」并保存。
-
-**若出现「core.authing.cn is currently unable to handle the login request: HTTP ERROR 500」**：多为 Authing 端或配置问题。请确认：① 控制台 GitHub 社会化登录已开启且 Client ID/Secret 正确；② GitHub OAuth App 的 Authorization callback URL 与 Authing 提供的完全一致；③ 稍后重试或联系 [Authing 支持](https://forum.authing.cn/)。
-
-### 4. Run the app
+### 3. Run the app
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Login: [http://localhost:3000/login](http://localhost:3000/login)（GitHub 登录）.
+Open [http://localhost:3000](http://localhost:3000).
 
 ## Project Structure
 
@@ -70,7 +62,7 @@ Open [http://localhost:3000](http://localhost:3000). Login: [http://localhost:30
 
 ## Core Flows
 
-- **Auth:** [Authing](https://authing.cn) GitHub 登录（弹窗模式）；登录态存于 `authing_session` Cookie。Middleware 保护 `/dashboard`、`/create` 等，未登录跳转 `/login`。
+- **Auth:** **Authing** PC scan code login (QR code → scan with Authing app → sign in). Supabase Auth is also supported. Middleware protects `/dashboard`, `/create`, etc. Login page: `/login`.
 - **Create agreement:** Editor with optional `{{Name}}` / `{{Date}}` variables; system computes content hash and stores with status `pending`; QR code links to `/sign/[id]`.
 - **Sign:** `/sign/[id]` shows agreement, verifies hash, records signature and updates agreement to `signed`.
 - **Dashboard:** Tabs for My Drafts, Pending Signatures, Signed by Me.

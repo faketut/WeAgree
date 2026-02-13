@@ -1,107 +1,120 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { getAuthingClient, AUTHING_PROVIDER_GITHUB } from "@/lib/authing-client";
+import { getAuthingClient, isAuthingConfigured } from "@/lib/auth/authing";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Github } from "lucide-react";
 
-function isAuthingServerError(message: string): boolean {
-  return (
-    message.includes("500") ||
-    message.includes("unable to handle") ||
-    message.toLowerCase().includes("core.authing.cn")
-  );
-}
-
-const AUTHING_SERVER_ERROR_MSG =
-  "Authing 服务暂时异常（HTTP 500）。请检查：1) Authing 控制台「社会化登录」中 GitHub 已开启且 Client ID/Secret 正确；2) GitHub OAuth App 的回调 URL 与 Authing 提供的一致；3) 稍后重试或联系 Authing 支持。";
+const AUTHING_QR_CONTAINER_ID = "authing-qrcode-container";
 
 export default function LoginPage() {
-  const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirectTo") || "/dashboard";
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [message, setMessage] = useState<string>("");
+  const mounted = useRef(true);
 
-  async function handleGitHubLogin() {
-    setError(null);
-    setLoading(true);
-    const authing = getAuthingClient();
-    if (!authing) {
-      setError("Authing 未配置，请设置 NEXT_PUBLIC_AUTHING_APP_ID");
-      setLoading(false);
+  useEffect(() => {
+    mounted.current = true;
+    if (!isAuthingConfigured()) {
+      setStatus("error");
+      setMessage(
+        "Authing is not configured. Set NEXT_PUBLIC_AUTHING_APP_ID and NEXT_PUBLIC_AUTHING_APP_HOST in .env.local"
+      );
       return;
     }
-    try {
-      await authing.social.authorize(AUTHING_PROVIDER_GITHUB, {
-        popup: true,
-        onSuccess: async (user) => {
-          const token = user?.token ?? user?.id_token;
-          if (token == null || token === "") {
-            setError("登录成功但未获取到 token");
-            setLoading(false);
+
+    setStatus("loading");
+    const authing = getAuthingClient();
+
+    authing.qrcode.startScanning(AUTHING_QR_CONTAINER_ID, {
+      onSuccess: async (userInfo, ticket) => {
+        if (!mounted.current) return;
+        setMessage("Login successful, redirecting…");
+        setStatus("success");
+        try {
+          const user = await authing.qrcode.exchangeUserInfo(ticket);
+          const token = (user as { token?: string }).token;
+          if (!token) {
+            setStatus("error");
+            setMessage("Could not get login token");
             return;
           }
+          const redirectTo =
+            typeof window !== "undefined"
+              ? new URLSearchParams(window.location.search).get("redirectTo") || "/dashboard"
+              : "/dashboard";
           const res = await fetch("/api/auth/session", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token }),
+            body: JSON.stringify({ token, redirectTo }),
           });
+          const data = await res.json().catch(() => ({}));
           if (!res.ok) {
-            setError("设置登录状态失败");
-            setLoading(false);
+            setStatus("error");
+            setMessage(data.error || "Session setup failed");
             return;
           }
-          window.location.href = redirectTo;
-        },
-        onError: (code: number, message: string) => {
-          const msg = message || `登录失败 (${code})`;
-          setError(
-            isAuthingServerError(msg) ? AUTHING_SERVER_ERROR_MSG : msg
-          );
-          setLoading(false);
-        },
-      });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "GitHub 登录失败";
-      setError(isAuthingServerError(msg) ? AUTHING_SERVER_ERROR_MSG : msg);
-    }
-    setLoading(false);
-  }
+          window.location.href = data.redirectTo || redirectTo;
+        } catch (e) {
+          setStatus("error");
+          setMessage(e instanceof Error ? e.message : "Login failed");
+        }
+      },
+      onError: (data: { message?: string }) => {
+        if (mounted.current) setMessage(data?.message || "QR error");
+      },
+      onExpired: () => {
+        if (mounted.current) {
+          setMessage("QR code expired. Refresh the page for a new one.");
+        }
+      },
+      onCancel: () => {
+        if (mounted.current) setMessage("Login cancelled. Scan again to retry.");
+      },
+    });
+
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-muted/30 p-4">
-      <Card className="w-full max-w-md border shadow-sm">
-        <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-xl">登录</CardTitle>
-          <CardDescription>使用 GitHub 账号登录</CardDescription>
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <CardTitle>Sign in</CardTitle>
+          <CardDescription>
+            Scan the QR code with your Authing app to log in (PC scan code login).
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <Button
-            type="button"
-            className="w-full"
-            size="lg"
-            onClick={handleGitHubLogin}
-            disabled={loading}
-          >
-            <Github className="mr-2 h-5 w-5" />
-            {loading ? "正在跳转…" : "使用 GitHub 登录"}
-          </Button>
-          {error && (
-            <p className="text-center text-sm text-destructive" role="alert">
-              {error}
-            </p>
+        <CardContent className="flex flex-col items-center gap-4">
+          <div
+            id={AUTHING_QR_CONTAINER_ID}
+            className="min-h-[280px] min-w-[280px] rounded-lg border bg-white"
+          />
+          {status === "loading" && (
+            <p className="text-sm text-muted-foreground">Waiting for scan…</p>
           )}
-          <p className="text-center text-xs text-muted-foreground">
-            未配置 Authing 时请在控制台开启「GitHub」社会化登录并填写应用 ID。
-          </p>
+          {status === "success" && (
+            <p className="text-sm text-primary">{message}</p>
+          )}
+          {status === "error" && (
+            <p className="text-sm text-destructive">{message}</p>
+          )}
+          {message && status !== "success" && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.location.reload()}
+            >
+              Refresh QR code
+            </Button>
+          )}
+          <Link href="/" className="text-sm text-muted-foreground underline">
+            Back to home
+          </Link>
         </CardContent>
       </Card>
-      <Link href="/" className="mt-6 text-sm text-muted-foreground hover:underline">
-        返回首页
-      </Link>
     </main>
   );
 }
