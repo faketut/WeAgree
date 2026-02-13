@@ -26,9 +26,10 @@ npm install
 
    - `NEXT_PUBLIC_SUPABASE_URL` – Project URL (Settings → API)
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY` – anon/public key (Settings → API)
-   - **Authing (PC scan code login):** `NEXT_PUBLIC_AUTHING_APP_ID` and `NEXT_PUBLIC_AUTHING_APP_HOST` (from [Authing Console](https://console.authing.cn) → your app / user pool domain, e.g. `https://xxx.authing.cn`)
 
-3. Run the database migration:
+3. Enable GitHub login: In **Supabase** → **Authentication → Providers → GitHub**, add your GitHub OAuth app **Client ID** and **Client Secret**. In **Authentication → URL Configuration**, add your app’s callback to **Redirect URLs** (e.g. `https://we-agree.vercel.app/auth/callback` and `http://localhost:3000/auth/callback` for local dev). In your **GitHub OAuth app** settings, set the **Authorization callback URL** to the value Supabase shows (e.g. `https://<project-ref>.supabase.co/auth/v1/callback`).
+
+4. Run the database migration:
 
    - In Supabase: **SQL Editor** → New query → paste contents of `supabase/migrations/001_initial_schema.sql` → Run.
 
@@ -38,7 +39,7 @@ npm install
    supabase db push
    ```
 
-### 3. Run the app
+### 5. Run the app
 
 ```bash
 npm run dev
@@ -62,7 +63,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Core Flows
 
-- **Auth:** **Authing** PC scan code login (QR code → scan with Authing app → sign in). Supabase Auth is also supported. Middleware protects `/dashboard`, `/create`, etc. Login page: `/login`.
+- **Auth:** Supabase Auth with **GitHub OAuth**. Login page `/login` → “Sign in with GitHub” → redirects to GitHub then back to `/auth/callback`, which exchanges the code for a session. Middleware protects `/dashboard`, `/create`, etc.
 - **Create agreement:** Editor with optional `{{Name}}` / `{{Date}}` variables; system computes content hash and stores with status `pending`; QR code links to `/sign/[id]`.
 - **Sign:** `/sign/[id]` shows agreement, verifies hash, records signature and updates agreement to `signed`.
 - **Dashboard:** Tabs for My Drafts, Pending Signatures, Signed by Me.

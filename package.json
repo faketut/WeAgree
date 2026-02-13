@@ -12,7 +12,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "authing-js-sdk": "^4.23.55",
     "@radix-ui/react-dialog": "^1.0.5",
     "@radix-ui/react-slot": "^1.0.2",
     "@radix-ui/react-tabs": "^1.0.4",

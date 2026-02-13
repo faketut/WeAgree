@@ -1,7 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import type { CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { AUTHING_SESSION_COOKIE, isAuthingTokenValid } from "@/lib/auth/session";
 
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
@@ -11,15 +10,8 @@ function isProtectedPath(pathname: string) {
   return protectedPaths.some((p) => pathname === p || pathname.startsWith(p + "/"));
 }
 
-function hasValidAuthingSession(request: NextRequest): boolean {
-  const token = request.cookies.get(AUTHING_SESSION_COOKIE)?.value;
-  return Boolean(token && isAuthingTokenValid(token));
-}
-
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
-
-  const authingLoggedIn = hasValidAuthingSession(request);
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -39,18 +31,16 @@ export async function middleware(request: NextRequest) {
   );
 
   const {
-    data: { user: supabaseUser },
+    data: { user },
   } = await supabase.auth.getUser();
 
-  const isLoggedIn = authingLoggedIn || Boolean(supabaseUser);
-
-  if (isProtectedPath(request.nextUrl.pathname) && !isLoggedIn) {
+  if (isProtectedPath(request.nextUrl.pathname) && !user) {
     const redirect = new URL("/login", request.url);
     redirect.searchParams.set("redirectTo", request.nextUrl.pathname);
     return NextResponse.redirect(redirect);
   }
 
-  if (request.nextUrl.pathname === "/login" && isLoggedIn) {
+  if (request.nextUrl.pathname === "/login" && user) {
     const redirectTo = request.nextUrl.searchParams.get("redirectTo") || "/dashboard";
     const redirectResponse = NextResponse.redirect(new URL(redirectTo, request.url));
     response.cookies.getAll().forEach((c) => redirectResponse.cookies.set(c.name, c.value));
