@@ -1,13 +1,17 @@
 -- Secure Digital Agreement Platform – Initial Schema
 -- Ensures immutability and data integrity for agreements and signatures.
 
+-- Ensure gen_random_uuid() is available
+create extension if not exists "pgcrypto";
+
 -- =============================================================================
 -- 1. PROFILES (extends auth.users)
 -- =============================================================================
+-- full_name and email for display; phone and wechat_openid optional; no avatar
 create table public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   full_name text,
-  avatar_url text,
+  email text,
   phone text,
   wechat_openid text,
   created_at timestamptz default now() not null,
@@ -28,18 +32,18 @@ create policy "Users can insert own profile"
   on public.profiles for insert
   with check (auth.uid() = id);
 
--- Trigger to create profile on signup
+-- Trigger to create profile on signup (no avatar; full_name from meta or email prefix)
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer set search_path = public
 as $$
 begin
-  insert into public.profiles (id, full_name, avatar_url)
+  insert into public.profiles (id, full_name, email)
   values (
     new.id,
-    coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
-    new.raw_user_meta_data->>'avatar_url'
+    coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', split_part(coalesce(new.email, ''), '@', 1), 'User'),
+    new.email
   );
   return new;
 end;
@@ -50,7 +54,7 @@ create trigger on_auth_user_created
   for each row execute function public.handle_new_user();
 
 -- =============================================================================
--- 2. TEMPLATES
+-- 2. TEMPLATES (MVP: not used; user_id kept for future; could rename to creator_id)
 -- =============================================================================
 create table public.templates (
   id uuid primary key default gen_random_uuid(),
@@ -98,17 +102,27 @@ create table public.agreements (
 
 alter table public.agreements enable row level security;
 
--- Immutability: once status is 'pending' or 'signed', content and content_hash cannot change
+-- Immutability: content/hash unchanged once pending/signed; status cannot be reverted
 create or replace function public.agreements_immutable_content()
 returns trigger
 language plpgsql
 as $$
 begin
+  -- Content immutability
   if old.status in ('pending', 'signed') and (
     new.content is distinct from old.content or new.content_hash is distinct from old.content_hash
   ) then
     raise exception 'Agreement content and content_hash are immutable when status is pending or signed.';
   end if;
+
+  -- Status integrity: no regression
+  if old.status = 'signed' and new.status != 'signed' then
+    raise exception 'Signed agreements cannot be modified or reverted.';
+  end if;
+  if old.status = 'pending' and new.status = 'draft' then
+    raise exception 'Cannot revert pending agreement to draft.';
+  end if;
+
   return new;
 end;
 $$;
@@ -121,21 +135,12 @@ create policy "Creators can manage own agreements"
   on public.agreements for all
   using (auth.uid() = creator_id);
 
-create policy "Signed agreements are readable by signers"
-  on public.agreements for select
-  using (
-    auth.uid() = creator_id
-    or exists (
-      select 1 from public.signatures s where s.agreement_id = agreements.id and s.signer_id = auth.uid()
-    )
-  );
-
 create index idx_agreements_creator_id on public.agreements (creator_id);
 create index idx_agreements_status on public.agreements (status);
 create index idx_agreements_created_at on public.agreements (created_at desc);
 
 -- =============================================================================
--- 4. SIGNATURES (one signature per user per agreement)
+-- 4. SIGNATURES (moved before AGREEMENTS read policy)
 -- =============================================================================
 create table public.signatures (
   id uuid primary key default gen_random_uuid(),
@@ -148,6 +153,30 @@ create table public.signatures (
 );
 
 alter table public.signatures enable row level security;
+
+-- Auto-fill signer_name from profiles when not provided (before insert)
+create or replace function public.fill_signer_name()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if new.signer_name is null or trim(new.signer_name) = '' then
+    select coalesce(nullif(trim(full_name), ''), 'Signer')
+      into new.signer_name
+      from public.profiles
+      where id = new.signer_id;
+    if new.signer_name is null then
+      new.signer_name := 'Signer';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger on_signature_insert_fill_name
+  before insert on public.signatures
+  for each row execute function public.fill_signer_name();
 
 create policy "Signers can insert own signature"
   on public.signatures for insert
@@ -166,7 +195,21 @@ create index idx_signatures_agreement_id on public.signatures (agreement_id);
 create index idx_signatures_signer_id on public.signatures (signer_id);
 
 -- =============================================================================
--- 5. HELPER: Update agreement signed_at when first signature is added
+-- 5. Re-create Agreements read policy (now signatures exists)
+-- =============================================================================
+-- Read: creator, or pending (link-based access for signers), or already-signed user
+create policy "Agreements read access"
+  on public.agreements for select
+  using (
+    auth.uid() = creator_id
+    or status = 'pending'::public.agreement_status
+    or exists (
+      select 1 from public.signatures s where s.agreement_id = agreements.id and s.signer_id = auth.uid()
+    )
+  );
+
+-- =============================================================================
+-- 6. HELPER: Update agreement signed_at when first signature is added
 -- =============================================================================
 create or replace function public.set_agreement_signed_at()
 returns trigger
