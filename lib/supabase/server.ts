@@ -7,8 +7,9 @@ type CookieToSet = { name: string; value: string; options: CookieOptions };
 export async function createClient() {
   const cookieStore = await cookies();
 
+  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/\/+$/, "");
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    url,
     (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!,
     {
       cookies: {

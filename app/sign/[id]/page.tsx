@@ -33,8 +33,13 @@ export default async function SignPage({
     if (result.data) agreement = result.data;
     if (result.error) agreement = null;
   } catch {
-    // SUPABASE_SECRET_KEY not set or admin client failed → 404 (set secret key on Vercel)
     agreement = null;
+  }
+
+  if (!agreement) {
+    const supabaseServer = await createClient();
+    const rpc = await supabaseServer.rpc("get_agreement_for_signing", { p_id: id }).maybeSingle();
+    if (rpc.data) agreement = rpc.data;
   }
 
   if (!agreement) notFound();

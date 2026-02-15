@@ -11,16 +11,16 @@ function isProtectedPath(pathname: string) {
 }
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request });
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabasePublishableKey =
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabasePublishableKey) {
-    return response;
-  }
-
   try {
+    const response = NextResponse.next({ request });
+
+    const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/\/+$/, "");
+    const supabasePublishableKey =
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabasePublishableKey) {
+      return response;
+    }
+
     const supabase = createServerClient(supabaseUrl, supabasePublishableKey, {
       cookies: {
         getAll() {
@@ -50,11 +50,11 @@ export async function middleware(request: NextRequest) {
       response.cookies.getAll().forEach((c) => redirectResponse.cookies.set(c.name, c.value));
       return redirectResponse;
     }
-  } catch {
-    return response;
-  }
 
-  return response;
+    return response;
+  } catch {
+    return NextResponse.next({ request });
+  }
 }
 
 export const config = {
