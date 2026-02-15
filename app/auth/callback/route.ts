@@ -6,15 +6,22 @@ export async function GET(request: Request) {
   const code = searchParams.get("code");
   const redirectTo = searchParams.get("redirectTo") ?? "/dashboard";
   const envUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "");
-  const forwarded =
-    request.headers.get("x-forwarded-proto") && request.headers.get("x-forwarded-host")
-      ? `${request.headers.get("x-forwarded-proto")}://${request.headers.get("x-forwarded-host")}`
-      : null;
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const host = request.headers.get("host");
   const requestOrigin = new URL(request.url).origin;
-  const baseUrl =
-    envUrl && !envUrl.includes("localhost")
-      ? envUrl
-      : forwarded || requestOrigin;
+
+  let baseUrl: string;
+  if (envUrl && !envUrl.includes("localhost")) {
+    baseUrl = envUrl;
+  } else if (forwardedProto && forwardedHost) {
+    baseUrl = `${forwardedProto}://${forwardedHost}`.replace(/\/+$/, "");
+  } else if (host && !host.includes("localhost")) {
+    const proto = forwardedProto ?? "https";
+    baseUrl = `${proto}://${host}`.replace(/\/+$/, "");
+  } else {
+    baseUrl = requestOrigin;
+  }
 
   const path = redirectTo.startsWith("/") ? redirectTo : `/${redirectTo}`;
 

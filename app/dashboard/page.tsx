@@ -18,23 +18,34 @@ import {
 } from "lucide-react";
 import type { Agreement, AgreementStatus } from "@/lib/types/database";
 
-async function getMyAgreements() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { drafts: [], pending: [], signed: [] };
+export const dynamic = "force-dynamic";
 
-  const { data: rows } = await supabase
-    .from("agreements")
-    .select("id, title, status, created_at")
-    .eq("creator_id", user.id)
-    .order("created_at", { ascending: false });
+async function getMyAgreements(): Promise<{
+  drafts: { id: string; title: string; status: string; created_at: string }[];
+  pending: { id: string; title: string; status: string; created_at: string }[];
+  signed: { id: string; title: string; status: string; created_at: string }[];
+}> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { drafts: [], pending: [], signed: [] };
 
-  const drafts = (rows ?? []).filter((r) => r.status === "draft");
-  const pending = (rows ?? []).filter((r) => r.status === "pending");
-  const signed = (rows ?? []).filter((r) => r.status === "signed");
-  return { drafts, pending, signed };
+    const { data: rows } = await supabase
+      .from("agreements")
+      .select("id, title, status, created_at")
+      .eq("creator_id", user.id)
+      .order("created_at", { ascending: false });
+
+    const list = rows ?? [];
+    const drafts = list.filter((r) => r.status === "draft");
+    const pending = list.filter((r) => r.status === "pending");
+    const signed = list.filter((r) => r.status === "signed");
+    return { drafts, pending, signed };
+  } catch {
+    return { drafts: [], pending: [], signed: [] };
+  }
 }
 
 function StatusBadge({ status }: { status: AgreementStatus }) {

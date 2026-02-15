@@ -45,8 +45,18 @@ export async function middleware(request: NextRequest) {
     }
 
     if (request.nextUrl.pathname === "/login" && user) {
-      const redirectTo = request.nextUrl.searchParams.get("redirectTo") || "/dashboard";
-      const redirectResponse = NextResponse.redirect(new URL(redirectTo, request.url));
+      const path = request.nextUrl.searchParams.get("redirectTo") || "/dashboard";
+      const pathOnly = path.startsWith("/") ? path : `/${path}`;
+      const envUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/+$/, "");
+      const proto = request.headers.get("x-forwarded-proto");
+      const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+      const origin =
+        envUrl && !envUrl.includes("localhost")
+          ? envUrl
+          : proto && host
+            ? `${proto}://${host}`.replace(/\/+$/, "")
+            : new URL(request.url).origin;
+      const redirectResponse = NextResponse.redirect(`${origin}${pathOnly}`);
       response.cookies.getAll().forEach((c) => redirectResponse.cookies.set(c.name, c.value));
       return redirectResponse;
     }
