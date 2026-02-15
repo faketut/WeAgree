@@ -20,10 +20,12 @@ import type { Agreement, AgreementStatus } from "@/lib/types/database";
 
 export const dynamic = "force-dynamic";
 
+type AgreementRow = Pick<Agreement, "id" | "title" | "status" | "created_at">;
+
 async function getMyAgreements(): Promise<{
-  drafts: { id: string; title: string; status: string; created_at: string }[];
-  pending: { id: string; title: string; status: string; created_at: string }[];
-  signed: { id: string; title: string; status: string; created_at: string }[];
+  drafts: AgreementRow[];
+  pending: AgreementRow[];
+  signed: AgreementRow[];
 }> {
   try {
     const supabase = await createClient();
@@ -38,7 +40,7 @@ async function getMyAgreements(): Promise<{
       .eq("creator_id", user.id)
       .order("created_at", { ascending: false });
 
-    const list = rows ?? [];
+    const list = (rows ?? []) as AgreementRow[];
     const drafts = list.filter((r) => r.status === "draft");
     const pending = list.filter((r) => r.status === "pending");
     const signed = list.filter((r) => r.status === "signed");
@@ -66,11 +68,7 @@ function StatusBadge({ status }: { status: AgreementStatus }) {
   );
 }
 
-function AgreementCard({
-  agreement,
-}: {
-  agreement: Pick<Agreement, "id" | "title" | "status" | "created_at">;
-}) {
+function AgreementCard({ agreement }: { agreement: AgreementRow }) {
   return (
     <Link href={`/dashboard/${agreement.id}`}>
       <Card className="transition-colors hover:bg-muted/50">
