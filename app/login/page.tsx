@@ -19,10 +19,20 @@ export default function LoginPage() {
         typeof window !== "undefined"
           ? new URLSearchParams(window.location.search).get("redirectTo") || "/dashboard"
           : "/dashboard";
+      const siteOrigin =
+        typeof window !== "undefined"
+          ? (() => {
+              const origin = window.location.origin;
+              const envUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "");
+              if (envUrl && !envUrl.includes("localhost")) return envUrl;
+              return origin;
+            })()
+          : "";
+      const callbackUrl = `${siteOrigin}/auth/callback?redirectTo=${encodeURIComponent(redirectTo)}`;
       const { error: err } = await supabase.auth.signInWithOAuth({
         provider: "github",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent(redirectTo)}`,
+          redirectTo: callbackUrl,
         },
       });
       if (err) {

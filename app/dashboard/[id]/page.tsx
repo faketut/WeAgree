@@ -1,10 +1,20 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { SharePanel } from "./share-panel";
 import { ArrowLeft } from "lucide-react";
+
+function getBaseUrl(): string {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "");
+  if (siteUrl) return siteUrl;
+  const h = headers();
+  const host = h.get("host") ?? "";
+  const proto = h.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
+  if (host) return `${proto}://${host}`;
+  return "http://localhost:3000";
+}
 
 export default async function AgreementSharePage({
   params,
@@ -27,7 +37,7 @@ export default async function AgreementSharePage({
 
   if (error || !agreement) notFound();
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const baseUrl = getBaseUrl();
   const signUrl = `${baseUrl}/sign/${agreement.id}`;
 
   return (

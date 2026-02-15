@@ -22,24 +22,24 @@ export default async function SignPage({
     status: string;
   } | null = null;
 
-  try {
-    const admin = createAdminClient();
-    const result = await admin
-      .from("agreements")
-      .select("id, title, content, content_hash, status")
-      .eq("id", id)
-      .in("status", ["pending", "signed"])
-      .maybeSingle();
-    if (result.data) agreement = result.data;
-    if (result.error) agreement = null;
-  } catch {
-    agreement = null;
-  }
+  const supabaseServer = await createClient();
+
+  const rpc = await supabaseServer.rpc("get_agreement_for_signing", { p_id: id }).maybeSingle();
+  if (rpc.data) agreement = rpc.data;
 
   if (!agreement) {
-    const supabaseServer = await createClient();
-    const rpc = await supabaseServer.rpc("get_agreement_for_signing", { p_id: id }).maybeSingle();
-    if (rpc.data) agreement = rpc.data;
+    try {
+      const admin = createAdminClient();
+      const result = await admin
+        .from("agreements")
+        .select("id, title, content, content_hash, status")
+        .eq("id", id)
+        .in("status", ["pending", "signed"])
+        .maybeSingle();
+      if (result.data) agreement = result.data;
+    } catch {
+      agreement = null;
+    }
   }
 
   if (!agreement) notFound();
