@@ -41,23 +41,25 @@ async function getMyAgreements(): Promise<{
       .order("created_at", { ascending: false });
 
     const list = (rows ?? []) as AgreementRow[];
-    const drafts = list.filter((r) => r.status === "draft");
-    const pending = list.filter((r) => r.status === "pending");
-    const signed = list.filter((r) => r.status === "signed");
-    return { drafts, pending, signed };
+    return {
+      drafts: list.filter((r) => r.status === "draft"),
+      pending: list.filter((r) => r.status === "pending"),
+      signed: list.filter((r) => r.status === "signed"),
+    };
   } catch {
     return { drafts: [], pending: [], signed: [] };
   }
 }
 
-function StatusBadge({ status }: { status: AgreementStatus }) {
-  const map = {
+function StatusBadge({ status }: { status: AgreementStatus | string }) {
+  const map: Record<AgreementStatus, { label: string; icon: typeof FileText; className: string }> = {
     draft: { label: "Draft", icon: FileText, className: "bg-muted text-muted-foreground" },
     pending: { label: "Pending", icon: Clock, className: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400" },
     signed: { label: "Signed", icon: CheckCircle, className: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" },
     voided: { label: "Voided", icon: FileText, className: "bg-destructive/10 text-destructive" },
   };
-  const { label, icon: Icon, className } = map[status];
+  const s = status as AgreementStatus;
+  const { label, icon: Icon, className } = map[s] ?? map.draft;
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${className}`}
@@ -68,7 +70,11 @@ function StatusBadge({ status }: { status: AgreementStatus }) {
   );
 }
 
-function AgreementCard({ agreement }: { agreement: AgreementRow }) {
+function AgreementCard({
+  agreement,
+}: {
+  agreement: { id: string; title: string; status: AgreementStatus | string; created_at: string };
+}) {
   return (
     <Link href={`/dashboard/${agreement.id}`}>
       <Card className="transition-colors hover:bg-muted/50">
