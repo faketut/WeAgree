@@ -1,6 +1,9 @@
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { SignView } from "./sign-view";
+
+export const dynamic = "force-dynamic";
 
 export default async function SignPage({
   params,
@@ -11,19 +14,32 @@ export default async function SignPage({
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   if (!uuidRegex.test(id)) notFound();
 
-  const supabase = await createClient();
+  let agreement: {
+    id: string;
+    title: string;
+    content: string;
+    content_hash: string;
+    status: string;
+  } | null = null;
 
-  const { data: agreement, error } = await supabase
-    .from("agreements")
-    .select("id, title, content, content_hash, status")
-    .eq("id", id)
-    .single();
-
-  if (error || !agreement) notFound();
-  if (agreement.status === "draft" || agreement.status === "voided") {
-    notFound();
+  try {
+    const admin = createAdminClient();
+    const result = await admin
+      .from("agreements")
+      .select("id, title, content, content_hash, status")
+      .eq("id", id)
+      .in("status", ["pending", "signed"])
+      .maybeSingle();
+    if (result.data) agreement = result.data;
+    if (result.error) agreement = null;
+  } catch {
+    // SUPABASE_SECRET_KEY not set or admin client failed → 404 (set secret key on Vercel)
+    agreement = null;
   }
 
+  if (!agreement) notFound();
+
+  const supabase = await createClient();
   const { data: signatures } = await supabase
     .from("signatures")
     .select("signer_id, signer_name, signed_at")

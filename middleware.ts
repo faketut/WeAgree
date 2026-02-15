@@ -13,10 +13,15 @@ function isProtectedPath(pathname: string) {
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabasePublishableKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabasePublishableKey) {
+    return response;
+  }
+
+  try {
+    const supabase = createServerClient(supabaseUrl, supabasePublishableKey, {
       cookies: {
         getAll() {
           return request.cookies.getAll();
@@ -27,24 +32,26 @@ export async function middleware(request: NextRequest) {
           );
         },
       },
+    });
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (isProtectedPath(request.nextUrl.pathname) && !user) {
+      const redirect = new URL("/login", request.url);
+      redirect.searchParams.set("redirectTo", request.nextUrl.pathname);
+      return NextResponse.redirect(redirect);
     }
-  );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (isProtectedPath(request.nextUrl.pathname) && !user) {
-    const redirect = new URL("/login", request.url);
-    redirect.searchParams.set("redirectTo", request.nextUrl.pathname);
-    return NextResponse.redirect(redirect);
-  }
-
-  if (request.nextUrl.pathname === "/login" && user) {
-    const redirectTo = request.nextUrl.searchParams.get("redirectTo") || "/dashboard";
-    const redirectResponse = NextResponse.redirect(new URL(redirectTo, request.url));
-    response.cookies.getAll().forEach((c) => redirectResponse.cookies.set(c.name, c.value));
-    return redirectResponse;
+    if (request.nextUrl.pathname === "/login" && user) {
+      const redirectTo = request.nextUrl.searchParams.get("redirectTo") || "/dashboard";
+      const redirectResponse = NextResponse.redirect(new URL(redirectTo, request.url));
+      response.cookies.getAll().forEach((c) => redirectResponse.cookies.set(c.name, c.value));
+      return redirectResponse;
+    }
+  } catch {
+    return response;
   }
 
   return response;
