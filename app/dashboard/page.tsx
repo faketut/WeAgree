@@ -70,11 +70,7 @@ function StatusBadge({ status }: { status: AgreementStatus | string }) {
   );
 }
 
-function AgreementCard({
-  agreement,
-}: {
-  agreement: { id: string; title: string; status: AgreementStatus | string; created_at: string };
-}) {
+function AgreementCard({ agreement }: { agreement: AgreementRow }) {
   return (
     <Link href={`/dashboard/${agreement.id}`}>
       <Card className="transition-colors hover:bg-muted/50">
@@ -128,7 +124,7 @@ export default async function DashboardPage() {
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {pending.map((a) => (
-                <AgreementCard key={a.id} agreement={a} />
+                <AgreementCard key={a.id} agreement={a as AgreementRow} />
               ))}
             </div>
           )}
@@ -144,7 +140,7 @@ export default async function DashboardPage() {
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {signed.map((a) => (
-                <AgreementCard key={a.id} agreement={a} />
+                <AgreementCard key={a.id} agreement={a as AgreementRow} />
               ))}
             </div>
           )}
@@ -160,7 +156,7 @@ export default async function DashboardPage() {
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {drafts.map((a) => (
-                <AgreementCard key={a.id} agreement={a} />
+                <AgreementCard key={a.id} agreement={a as AgreementRow} />
               ))}
             </div>
           )}
