@@ -3,7 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
@@ -16,16 +15,27 @@ import {
   FileCheck,
   LogOut,
 } from "lucide-react";
-import type { Agreement, AgreementStatus } from "@/lib/types/database";
+import type { AgreementStatus } from "@/lib/types/database";
 
 export const dynamic = "force-dynamic";
 
-type AgreementRow = Pick<Agreement, "id" | "title" | "status" | "created_at">;
+const STATUS_ORDER: AgreementStatus[] = ["pending", "signed", "draft", "voided"];
+
+function isValidStatus(s: string): s is AgreementStatus {
+  return STATUS_ORDER.includes(s as AgreementStatus);
+}
+
+type DashboardAgreement = {
+  id: string;
+  title: string;
+  status: AgreementStatus;
+  created_at: string;
+};
 
 async function getMyAgreements(): Promise<{
-  drafts: AgreementRow[];
-  pending: AgreementRow[];
-  signed: AgreementRow[];
+  drafts: DashboardAgreement[];
+  pending: DashboardAgreement[];
+  signed: DashboardAgreement[];
 }> {
   try {
     const supabase = await createClient();
@@ -34,32 +44,61 @@ async function getMyAgreements(): Promise<{
     } = await supabase.auth.getUser();
     if (!user) return { drafts: [], pending: [], signed: [] };
 
-    const { data: rows } = await supabase
+    const { data: rows, error } = await supabase
       .from("agreements")
       .select("id, title, status, created_at")
       .eq("creator_id", user.id)
       .order("created_at", { ascending: false });
 
-    const list = (rows ?? []) as AgreementRow[];
+    if (error || !rows) return { drafts: [], pending: [], signed: [] };
+
+    const list: DashboardAgreement[] = rows
+      .filter((r): r is typeof r & { status: AgreementStatus } => isValidStatus(r.status))
+      .map((r) => ({
+        id: r.id,
+        title: r.title,
+        status: r.status,
+        created_at: r.created_at,
+      }));
+
     return {
-      drafts: list.filter((r) => r.status === "draft"),
-      pending: list.filter((r) => r.status === "pending"),
-      signed: list.filter((r) => r.status === "signed"),
+      pending: list.filter((a) => a.status === "pending"),
+      signed: list.filter((a) => a.status === "signed"),
+      drafts: list.filter((a) => a.status === "draft"),
     };
   } catch {
     return { drafts: [], pending: [], signed: [] };
   }
 }
 
-function StatusBadge({ status }: { status: AgreementStatus | string }) {
-  const map: Record<AgreementStatus, { label: string; icon: typeof FileText; className: string }> = {
-    draft: { label: "Draft", icon: FileText, className: "bg-muted text-muted-foreground" },
-    pending: { label: "Pending", icon: Clock, className: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400" },
-    signed: { label: "Signed", icon: CheckCircle, className: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" },
-    voided: { label: "Voided", icon: FileText, className: "bg-destructive/10 text-destructive" },
-  };
-  const s = status as AgreementStatus;
-  const { label, icon: Icon, className } = map[s] ?? map.draft;
+const STATUS_CONFIG: Record<
+  AgreementStatus,
+  { label: string; icon: typeof FileText; className: string }
+> = {
+  draft: {
+    label: "Draft",
+    icon: FileText,
+    className: "bg-muted text-muted-foreground",
+  },
+  pending: {
+    label: "Pending",
+    icon: Clock,
+    className: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+  },
+  signed: {
+    label: "Signed",
+    icon: CheckCircle,
+    className: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+  },
+  voided: {
+    label: "Voided",
+    icon: FileText,
+    className: "bg-destructive/10 text-destructive",
+  },
+};
+
+function StatusBadge({ status }: { status: AgreementStatus }) {
+  const { label, icon: Icon, className } = STATUS_CONFIG[status];
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${className}`}
@@ -70,7 +109,7 @@ function StatusBadge({ status }: { status: AgreementStatus | string }) {
   );
 }
 
-function AgreementCard({ agreement }: { agreement: AgreementRow }) {
+function AgreementCard({ agreement }: { agreement: DashboardAgreement }) {
   return (
     <Link href={`/dashboard/${agreement.id}`}>
       <Card className="transition-colors hover:bg-muted/50">
@@ -124,7 +163,7 @@ export default async function DashboardPage() {
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {pending.map((a) => (
-                <AgreementCard key={a.id} agreement={a as AgreementRow} />
+                <AgreementCard key={a.id} agreement={a} />
               ))}
             </div>
           )}
@@ -140,7 +179,7 @@ export default async function DashboardPage() {
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {signed.map((a) => (
-                <AgreementCard key={a.id} agreement={a as AgreementRow} />
+                <AgreementCard key={a.id} agreement={a} />
               ))}
             </div>
           )}
@@ -156,7 +195,7 @@ export default async function DashboardPage() {
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {drafts.map((a) => (
-                <AgreementCard key={a.id} agreement={a as AgreementRow} />
+                <AgreementCard key={a.id} agreement={a} />
               ))}
             </div>
           )}
