@@ -5,7 +5,11 @@ import { SignView } from "./sign-view";
 import type { AgreementStatus } from "@/lib/types/database";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
+// Signers may only view pending or signed agreements (never draft/voided). Agreement content
+// is idempotent: once published, title/content/content_hash are immutable (DB trigger).
+// Each request fetches the latest agreement + signatures so every signer sees the latest signed agreement.
 export default async function SignPage({
   params,
 }: {
@@ -21,6 +25,7 @@ export default async function SignPage({
     content: string;
     content_hash: string;
     status: string;
+    required_signatures: number;
   };
 
   let agreement: AgreementForSign | null = null;
@@ -37,12 +42,14 @@ export default async function SignPage({
     typeof raw.content_hash === "string" &&
     typeof raw.status === "string"
   ) {
+    const req = raw.required_signatures;
     agreement = {
       id: raw.id,
       title: raw.title,
       content: raw.content,
       content_hash: raw.content_hash,
       status: raw.status,
+      required_signatures: typeof req === "number" && req >= 1 ? req : 1,
     };
   }
 
@@ -51,22 +58,35 @@ export default async function SignPage({
       const admin = createAdminClient();
       const result = await admin
         .from("agreements")
-        .select("id, title, content, content_hash, status")
+        .select("id, title, content, content_hash, status, required_signatures")
         .eq("id", id)
         .in("status", ["pending", "signed"])
         .maybeSingle();
-      if (result.data) agreement = result.data;
+      if (result.data) {
+        const d = result.data as Record<string, unknown>;
+        const req = d.required_signatures;
+        agreement = {
+          id: d.id as string,
+          title: d.title as string,
+          content: d.content as string,
+          content_hash: d.content_hash as string,
+          status: d.status as string,
+          required_signatures:
+            typeof req === "number" && req >= 1 ? req : 1,
+        };
+      }
     } catch {
       agreement = null;
     }
   }
 
+  // Only pending and signed are returned by RPC and admin fallback; draft/voided => notFound
   if (!agreement) notFound();
 
   const supabase = await createClient();
   const { data: signatures } = await supabase
     .from("signatures")
-    .select("signer_id, signer_name, signed_at")
+    .select("signer_id, signer_name, signed_at, annotation")
     .eq("agreement_id", agreement.id)
     .order("signed_at", { ascending: true });
 
@@ -78,6 +98,7 @@ export default async function SignPage({
       contentHash={agreement.content_hash}
       status={agreement.status as AgreementStatus}
       signatures={signatures ?? []}
+      requiredSignatures={agreement.required_signatures}
     />
   );
 }

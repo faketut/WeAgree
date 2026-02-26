@@ -3,13 +3,23 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createAgreement } from "@/app/actions/agreements";
+import { updateDraftAgreement } from "@/app/actions/agreements";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { FileText, ArrowLeft } from "lucide-react";
 
-export default function CreatePage() {
+export function EditDraftForm({
+  agreementId,
+  initialTitle,
+  initialContent,
+  initialRequiredSignatures,
+}: {
+  agreementId: string;
+  initialTitle: string;
+  initialContent: string;
+  initialRequiredSignatures: number;
+}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,38 +29,38 @@ export default function CreatePage() {
     setError(null);
     setLoading(true);
     const form = e.currentTarget;
-    const formData = new FormData(form);
-    const result = await createAgreement(formData);
+    const title = (form.querySelector('[name="title"]') as HTMLInputElement)?.value?.trim();
+    const content = (form.querySelector('[name="content"]') as HTMLTextAreaElement)?.value?.trim();
+    const requiredSignaturesRaw = (form.querySelector('[name="required_signatures"]') as HTMLInputElement)?.value;
+    const required_signatures = Math.max(1, parseInt(requiredSignaturesRaw ?? "1", 10) || 1);
+    const result = await updateDraftAgreement(agreementId, { title, content, required_signatures });
     setLoading(false);
     if (result?.error) {
       setError(result.error);
       return;
     }
-    if (result?.id) {
-      router.push(`/dashboard/${result.id}`);
-    }
+    router.push(`/dashboard/${agreementId}`);
+    router.refresh();
   }
 
   return (
     <main className="min-h-screen bg-muted/30 p-4 md:p-8">
       <div className="mx-auto max-w-2xl space-y-6">
         <Link
-          href="/dashboard"
+          href={`/dashboard/${agreementId}`}
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Dashboard
+          Back to agreement
         </Link>
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-6 w-6" />
-              New Agreement
+              Edit draft
             </CardTitle>
             <CardDescription>
-              Create a new agreement. Content supports plain text or Markdown. Use{" "}
-              <code className="rounded bg-muted px-1">{`{{Name}}`}</code> for placeholder
-              variables.
+              Update title and content. When ready, publish from the agreement page.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -62,6 +72,7 @@ export default function CreatePage() {
                 <Input
                   id="title"
                   name="title"
+                  defaultValue={initialTitle}
                   placeholder="e.g. Service Agreement"
                   required
                   disabled={loading}
@@ -77,6 +88,7 @@ export default function CreatePage() {
                   rows={12}
                   required
                   disabled={loading}
+                  defaultValue={initialContent}
                   placeholder="Enter agreement content here. You can use {{Name}} for variables."
                   className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 />
@@ -90,7 +102,7 @@ export default function CreatePage() {
                   name="required_signatures"
                   type="number"
                   min={1}
-                  defaultValue={1}
+                  defaultValue={initialRequiredSignatures}
                   disabled={loading}
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -99,7 +111,7 @@ export default function CreatePage() {
               </div>
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button type="submit" disabled={loading} className="w-full">
-                {loading ? "Saving…" : "Save as draft"}
+                {loading ? "Saving…" : "Save changes"}
               </Button>
             </form>
           </CardContent>
