@@ -21,8 +21,8 @@ export function SharePanel({
   }
 
   return (
-    <div className="space-y-4 rounded-lg border border-dashed p-4">
-      <p className="text-sm font-medium">Share for signing</p>
+    <div className="space-y-4 rounded-lg border border-dashed border-border bg-muted/20 p-4">
+      <p className="text-sm font-semibold">Share for signing</p>
       <div className="flex flex-wrap items-start gap-6">
         <div className="flex flex-col items-center gap-2">
           <QRCodeSVG value={signUrl} size={160} level="M" />

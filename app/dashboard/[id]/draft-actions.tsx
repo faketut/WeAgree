@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { publishAgreement } from "@/app/actions/agreements";
 import { Button } from "@/components/ui/button";
-import { Send, Pencil, Loader2 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Send, Pencil, Loader2, AlertCircle } from "lucide-react";
 
 export function DraftActions({ agreementId }: { agreementId: string }) {
   const router = useRouter();
@@ -26,7 +27,12 @@ export function DraftActions({ agreementId }: { agreementId: string }) {
 
   return (
     <div className="space-y-3">
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
       <div className="flex flex-wrap gap-3">
         <Button onClick={handlePublish} disabled={loading}>
           {loading ? (

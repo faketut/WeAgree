@@ -7,7 +7,10 @@ import { createAgreement } from "@/app/actions/agreements";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { FileText, ArrowLeft } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { FileText, ArrowLeft, AlertCircle } from "lucide-react";
 
 export default function CreatePage() {
   const router = useRouter();
@@ -55,10 +58,8 @@ export default function CreatePage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label htmlFor="title" className="mb-1 block text-sm font-medium">
-                  Title
-                </label>
+              <div className="space-y-2">
+                <Label htmlFor="title">Title</Label>
                 <Input
                   id="title"
                   name="title"
@@ -67,24 +68,19 @@ export default function CreatePage() {
                   disabled={loading}
                 />
               </div>
-              <div>
-                <label htmlFor="content" className="mb-1 block text-sm font-medium">
-                  Content
-                </label>
-                <textarea
+              <div className="space-y-2">
+                <Label htmlFor="content">Content</Label>
+                <Textarea
                   id="content"
                   name="content"
                   rows={12}
                   required
                   disabled={loading}
                   placeholder="Enter agreement content here. You can use {{Name}} for variables."
-                  className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </div>
-              <div>
-                <label htmlFor="required_signatures" className="mb-1 block text-sm font-medium">
-                  Required signatures
-                </label>
+              <div className="space-y-2">
+                <Label htmlFor="required_signatures">Required signatures</Label>
                 <Input
                   id="required_signatures"
                   name="required_signatures"
@@ -93,13 +89,18 @@ export default function CreatePage() {
                   defaultValue={1}
                   disabled={loading}
                 />
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Number of signers needed before the agreement is fully signed.
                 </p>
               </div>
-              {error && <p className="text-sm text-destructive">{error}</p>}
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
               <Button type="submit" disabled={loading} className="w-full">
-                {loading ? "Saving…" : "Save as draft"}
+                {loading ? "Creating…" : "Create agreement"}
               </Button>
             </form>
           </CardContent>

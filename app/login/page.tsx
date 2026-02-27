@@ -5,6 +5,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -40,7 +42,6 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
-      // Supabase redirects the browser to GitHub, so we don't navigate manually
     } catch (e) {
       setError(e instanceof Error ? e.message : "Sign in failed");
       setLoading(false);
@@ -50,24 +51,32 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle>Sign in</CardTitle>
+        <CardHeader className="space-y-1.5 text-center">
+          <CardTitle className="text-2xl">Sign in</CardTitle>
           <CardDescription>
-            Sign in with your GitHub account to continue.
+            Sign in with your GitHub account to create and manage agreements.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col items-center gap-4">
+        <CardContent className="flex flex-col gap-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Sign in failed</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
           <Button
             onClick={signInWithGitHub}
             disabled={loading}
             className="w-full"
+            size="lg"
           >
             {loading ? "Redirecting…" : "Sign in with GitHub"}
           </Button>
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
-          <Link href="/" className="text-sm text-muted-foreground underline">
+          <Link
+            href="/"
+            className="text-center text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+          >
             Back to home
           </Link>
         </CardContent>

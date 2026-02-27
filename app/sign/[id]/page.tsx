@@ -84,11 +84,22 @@ export default async function SignPage({
   if (!agreement) notFound();
 
   const supabase = await createClient();
-  const { data: signatures } = await supabase
+  const { data: signaturesRaw } = await supabase
     .from("signatures")
-    .select("signer_id, signer_name, signed_at, annotation")
+    .select("signer_id, signer_name, signed_at, annotation, signature_display, signature_style, profiles(email)")
     .eq("agreement_id", agreement.id)
     .order("signed_at", { ascending: true });
+
+  const signatures =
+    signaturesRaw?.map((s: any) => ({
+      signer_id: s.signer_id,
+      signer_name: s.signer_name,
+      signed_at: s.signed_at,
+      annotation: s.annotation,
+      signature_display: s.signature_display,
+      signature_style: s.signature_style,
+      signer_email: s.profiles?.email ?? null,
+    })) ?? [];
 
   return (
     <SignView
@@ -97,7 +108,7 @@ export default async function SignPage({
       content={agreement.content}
       contentHash={agreement.content_hash}
       status={agreement.status as AgreementStatus}
-      signatures={signatures ?? []}
+      signatures={signatures}
       requiredSignatures={agreement.required_signatures}
     />
   );

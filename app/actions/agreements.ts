@@ -2,6 +2,9 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { canonicalize } from "@/lib/signing/json-canonical";
+import { kmsSign } from "@/lib/signing/kms-client";
+import crypto from "node:crypto";
 
 function sha256Hex(content: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -57,7 +60,7 @@ export async function createAgreement(formData: FormData) {
       title,
       content,
       content_hash: contentHash,
-      status: "draft",
+      status: "pending",
       required_signatures: requiredSignatures,
     })
     .select("id")
@@ -149,7 +152,42 @@ export async function updateDraftAgreement(
   return { success: true };
 }
 
-export async function signAgreement(agreementId: string, annotation?: string | null) {
+export async function deleteAgreement(agreementId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { data: row, error: fetchError } = await supabase
+    .from("agreements")
+    .select("id, status")
+    .eq("id", agreementId)
+    .eq("creator_id", user.id)
+    .single();
+
+  if (fetchError || !row) return { error: "Agreement not found" };
+  if (row.status !== "pending") return { error: "Only pending agreements can be deleted" };
+
+  const { error: deleteError } = await supabase
+    .from("agreements")
+    .delete()
+    .eq("id", agreementId)
+    .eq("creator_id", user.id);
+
+  if (deleteError) return { error: deleteError.message };
+
+  revalidatePath("/dashboard");
+  revalidatePath(`/dashboard/${agreementId}`);
+  return { success: true };
+}
+
+export async function signAgreement(
+  agreementId: string,
+  annotation?: string | null,
+  signatureDisplay?: string | null,
+  signatureStyle?: string | null
+) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -171,11 +209,33 @@ export async function signAgreement(agreementId: string, annotation?: string | n
   // Only pending or signed agreements can be signed (idempotent view: signers never see draft/voided)
   const { data: agreementRow } = await supabase
     .from("agreements")
-    .select("id, status")
+    .select("id, status, content_hash")
     .eq("id", agreementId)
     .in("status", ["pending", "signed"])
     .maybeSingle();
   if (!agreementRow) return { error: "Agreement not found or not available for signing." };
+
+  // Build signing payload for KMS
+  const timestamp = new Date().toISOString();
+  const nonce = crypto.randomUUID();
+  const signingPayload = {
+    contract_hash: agreementRow.content_hash as string,
+    signer_id: user.id,
+    timestamp,
+    nonce,
+  };
+
+  // Timestamp window check (5 minutes)
+  const now = Date.now();
+  const ts = Date.parse(signingPayload.timestamp);
+  if (!Number.isFinite(ts) || Math.abs(now - ts) > 5 * 60 * 1000) {
+    return { error: "Signature timestamp is outside allowed window." };
+  }
+
+  const canonicalJson = canonicalize(signingPayload);
+  const dataBytes = Buffer.from(canonicalJson, "utf8");
+
+  const { signature, keyId } = await kmsSign(dataBytes);
 
   const { data: existingSig } = await supabase
     .from("signatures")
@@ -190,6 +250,13 @@ export async function signAgreement(agreementId: string, annotation?: string | n
     agreement_id: agreementId,
     signer_id: user.id,
     signer_name: signerName,
+    kms_key_id: keyId,
+    signature_bytes: signature,
+    signing_payload: signingPayload,
+    signing_timestamp: timestamp,
+    signing_nonce: nonce,
+    signature_display: signatureDisplay?.trim() || null,
+    signature_style: signatureStyle || null,
     ...(annotation != null && annotation.trim() !== "" && { annotation: annotation.trim() }),
   });
 

@@ -7,6 +7,9 @@ import { createClient } from "@/lib/supabase/client";
 import { signAgreement } from "@/app/actions/agreements";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PenLine, AlertTriangle, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
 import type { AgreementStatus } from "@/lib/types/database";
 
@@ -26,6 +29,9 @@ type SignatureRow = {
   signer_name: string;
   signed_at: string;
   annotation?: string | null;
+  signature_display?: string | null;
+  signature_style?: string | null;
+  signer_email?: string | null;
 };
 
 export type SignViewProps = {
@@ -54,6 +60,8 @@ export function SignView({
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<{ id: string } | null>(null);
   const [annotation, setAnnotation] = useState("");
+  const [signatureText, setSignatureText] = useState("");
+  const [signatureStyle, setSignatureStyle] = useState<"script" | "bold" | "simple">("script");
 
   const alreadySigned = status === "signed";
   const currentUserSignature = user
@@ -82,8 +90,19 @@ export function SignView({
       return;
     }
     setError(null);
+
+    if (!signatureText.trim()) {
+      setError("Please enter your signature text.");
+      return;
+    }
+
     setSigning(true);
-    const result = await signAgreement(agreementId, annotation.trim() || null);
+    const result = await signAgreement(
+      agreementId,
+      annotation.trim() || null,
+      signatureText.trim(),
+      signatureStyle
+    );
     setSigning(false);
     if (result?.error) {
       setError(result.error);
@@ -117,36 +136,50 @@ export function SignView({
               </p>
             )}
             {verifyState === "idle" && (
-              <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Alert>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Verifying content…
-              </p>
+                <AlertDescription>Verifying content…</AlertDescription>
+              </Alert>
             )}
             {verifyState === "ok" && (
-              <p className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
-                <CheckCircle2 className="h-4 w-4" />
-                Content integrity verified.
-              </p>
+              <Alert className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30">
+                <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                <AlertDescription className="text-green-800 dark:text-green-200">
+                  Content integrity verified.
+                </AlertDescription>
+              </Alert>
             )}
             {verifyState === "tampered" && (
-              <p className="flex items-center gap-2 text-sm font-medium text-amber-600 dark:text-amber-400">
+              <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30 [&>svg]:text-amber-600">
                 <AlertTriangle className="h-4 w-4" />
-                Content verification failed. This document may have been tampered with. Do not sign.
-              </p>
+                <AlertDescription>
+                  Content verification failed. This document may have been tampered with. Do not sign.
+                </AlertDescription>
+              </Alert>
             )}
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="rounded-md border bg-muted/30 p-4">
+            <div className="rounded-lg border bg-muted/30 p-4">
               <pre className="whitespace-pre-wrap font-sans text-sm">{content}</pre>
             </div>
 
             {signatures.length > 0 && (
-              <div className="rounded-md border border-border bg-muted/20 p-4">
+              <div className="rounded-lg border bg-muted/20 p-4">
                 <p className="mb-2 text-sm font-medium">Signatures</p>
                 <ul className="space-y-2 text-sm">
                   {signatures.map((s) => (
                     <li key={s.signer_id} className="border-b border-border/50 pb-2 last:border-0 last:pb-0">
-                      <span className="font-medium">{s.signer_name}</span>
+                      <span
+                        className={
+                          s.signature_style === "bold"
+                            ? "font-bold tracking-wide"
+                            : s.signature_style === "simple"
+                              ? "font-medium"
+                              : "italic font-semibold"
+                        }
+                      >
+                        {s.signature_display || s.signer_name}
+                      </span>
                       <span className="text-muted-foreground">
                         {" "}
                         — {new Date(s.signed_at).toLocaleString()}
@@ -186,21 +219,69 @@ export function SignView({
               </div>
             ) : (
               <>
-                <div>
-                  <label htmlFor="sign-annotation" className="mb-1 block text-sm font-medium">
-                    Comment (optional)
-                  </label>
-                  <textarea
+                <div className="space-y-2">
+                  <Label htmlFor="signature-text">Signature</Label>
+                  <input
+                    id="signature-text"
+                    value={signatureText}
+                    onChange={(e) => setSignatureText(e.target.value)}
+                    placeholder="Type your full name"
+                    disabled={signing}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    <button
+                      type="button"
+                      onClick={() => setSignatureStyle("script")}
+                      className={`rounded border px-2 py-1 ${
+                        signatureStyle === "script" ? "border-primary text-primary" : "border-border"
+                      }`}
+                    >
+                      <span className="italic font-semibold">
+                        {signatureText || "Script style"}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSignatureStyle("bold")}
+                      className={`rounded border px-2 py-1 ${
+                        signatureStyle === "bold" ? "border-primary text-primary" : "border-border"
+                      }`}
+                    >
+                      <span className="font-bold tracking-wide">
+                        {signatureText || "Bold style"}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSignatureStyle("simple")}
+                      className={`rounded border px-2 py-1 ${
+                        signatureStyle === "simple" ? "border-primary text-primary" : "border-border"
+                      }`}
+                    >
+                      <span className="font-medium">
+                        {signatureText || "Simple style"}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="sign-annotation">Comment (optional)</Label>
+                  <Textarea
                     id="sign-annotation"
                     value={annotation}
                     onChange={(e) => setAnnotation(e.target.value)}
                     placeholder="Add a short comment with your signature"
                     rows={2}
                     disabled={signing}
-                    className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   />
                 </div>
-                {error && <p className="text-sm text-destructive">{error}</p>}
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
                 <Button
                   onClick={handleSign}
                   disabled={verifyState !== "ok" || signing}
