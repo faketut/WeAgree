@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { signAgreement } from "@/app/actions/agreements";
+import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -22,9 +23,15 @@ import {
   CheckCircle2,
   Loader2,
   RefreshCw,
+  Type as TypeIcon,
+  Eraser,
+  Image as ImageIcon,
 } from "lucide-react";
 import type { AgreementStatus } from "@/lib/types/database";
 import { buildSignatureSlotMap } from "@/lib/signaturePlaceholders";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SignaturePad } from "@/components/signature-pad";
+import { SignatureUpload } from "@/components/signature-upload";
 
 function sha256Hex(content: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -75,8 +82,9 @@ export function SignView({
   const [user, setUser] = useState<{ id: string } | null>(null);
   const [annotation, setAnnotation] = useState("");
   const [signatureText, setSignatureText] = useState("");
-  const [signatureStyle, setSignatureStyle] = useState<"script" | "bold" | "simple">("script");
-   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
+  const [signatureStyle, setSignatureStyle] = useState<"script" | "bold" | "simple" | "draw" | "upload">("script");
+  const [signatureDataUri, setSignatureDataUri] = useState<string | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
 
   const alreadySigned = status === "signed";
   const currentUserSignature = user
@@ -106,8 +114,8 @@ export function SignView({
     }
     setError(null);
 
-    if (!signatureText.trim()) {
-      setError("Please enter your signature text.");
+    if (!signatureText.trim() && !signatureDataUri) {
+      setError("Please provide a signature (type, draw, or upload).");
       return;
     }
 
@@ -126,7 +134,7 @@ export function SignView({
     const result = await signAgreement(
       agreementId,
       annotation.trim() || null,
-      signatureText.trim(),
+      signatureDataUri || signatureText.trim(),
       signatureStyle,
       selectedSlot
     );
@@ -197,7 +205,7 @@ export function SignView({
           <CardContent className="space-y-6">
             <div className="space-y-3">
               <div className="rounded-lg border bg-muted/30 p-4">
-                <pre className="whitespace-pre-wrap font-sans text-sm">{content}</pre>
+                <MarkdownRenderer content={content} />
               </div>
               {slots.length > 0 && (
                 <div className="rounded-lg border bg-muted/20 p-3">
@@ -251,23 +259,33 @@ export function SignView({
               <div className="rounded-lg border bg-muted/20 p-4">
                 <p className="mb-2 text-sm font-medium">Signatures</p>
                 <ul className="space-y-2 text-sm">
-                  {signatures.map((s) => (
-                    <li key={s.signer_id} className="border-b border-border/50 pb-2 last:border-0 last:pb-0">
-                      <span
-                        className={
-                          s.signature_style === "bold"
-                            ? "font-bold tracking-wide"
-                            : s.signature_style === "simple"
-                              ? "font-medium"
-                              : "italic font-semibold"
-                        }
-                      >
-                        {s.signature_display || s.signer_name}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {" "}
-                        — {new Date(s.signed_at).toLocaleString()}
-                      </span>
+                  {signatures.map((s, i) => (
+                    <li key={i} className="border-b border-border/50 pb-2 last:border-0 last:pb-0">
+                      <div className="flex flex-col gap-1">
+                        {s.signature_display?.startsWith("data:image/") ? (
+                          <img
+                            src={s.signature_display}
+                            alt={`Signature by ${s.signer_name}`}
+                            className="h-12 w-auto object-contain self-start dark:invert"
+                          />
+                        ) : (
+                          <span
+                            className={
+                              s.signature_style === "bold"
+                                ? "font-bold tracking-wide"
+                                : s.signature_style === "simple"
+                                  ? "font-medium"
+                                  : "italic font-semibold"
+                            }
+                          >
+                            {s.signature_display || s.signer_name}
+                          </span>
+                        )}
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <span className="font-medium text-foreground">{s.signer_name}</span>
+                          <span>— {new Date(s.signed_at).toLocaleString()}</span>
+                        </div>
+                      </div>
                       {s.annotation != null && s.annotation.trim() !== "" && (
                         <p className="mt-1 text-muted-foreground">{s.annotation}</p>
                       )}
@@ -303,51 +321,110 @@ export function SignView({
               </div>
             ) : (
               <>
-                <div className="space-y-2">
-                  <Label htmlFor="signature-text">Signature</Label>
-                  <input
-                    id="signature-text"
-                    value={signatureText}
-                    onChange={(e) => setSignatureText(e.target.value)}
-                    placeholder="Type your full name"
-                    disabled={signing}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  />
-                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                    <button
-                      type="button"
-                      onClick={() => setSignatureStyle("script")}
-                      className={`rounded border px-2 py-1 ${
-                        signatureStyle === "script" ? "border-primary text-primary" : "border-border"
-                      }`}
+                <div className="space-y-4">
+                  <Label>Signature</Label>
+                  {signatureDataUri ? (
+                    <div className="relative rounded-md border bg-white dark:bg-slate-950 p-6 flex flex-col items-center justify-center">
+                      <img
+                        src={signatureDataUri}
+                        alt="Applied signature"
+                        className="max-h-24 object-contain dark:invert"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="mt-2 text-xs h-7"
+                        onClick={() => {
+                          setSignatureDataUri(null);
+                          if (signatureStyle === "draw" || signatureStyle === "upload") {
+                            // Stay in the same mode but clear data
+                          }
+                        }}
+                      >
+                        <Eraser className="mr-1 h-3 w-3" />
+                        Clear signature
+                      </Button>
+                    </div>
+                  ) : (
+                    <Tabs
+                      defaultValue="type"
+                      onValueChange={(v) =>
+                        setSignatureStyle(v as any)
+                      }
+                      className="w-full"
                     >
-                      <span className="italic font-semibold">
-                        {signatureText || "Script style"}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSignatureStyle("bold")}
-                      className={`rounded border px-2 py-1 ${
-                        signatureStyle === "bold" ? "border-primary text-primary" : "border-border"
-                      }`}
-                    >
-                      <span className="font-bold tracking-wide">
-                        {signatureText || "Bold style"}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSignatureStyle("simple")}
-                      className={`rounded border px-2 py-1 ${
-                        signatureStyle === "simple" ? "border-primary text-primary" : "border-border"
-                      }`}
-                    >
-                      <span className="font-medium">
-                        {signatureText || "Simple style"}
-                      </span>
-                    </button>
-                  </div>
+                      <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="script" className="gap-2">
+                          <TypeIcon className="h-4 w-4" />
+                          Type
+                        </TabsTrigger>
+                        <TabsTrigger value="draw" className="gap-2">
+                          <PenLine className="h-4 w-4" />
+                          Draw
+                        </TabsTrigger>
+                        <TabsTrigger value="upload" className="gap-2">
+                          <ImageIcon className="h-4 w-4" />
+                          Upload
+                        </TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="script" className="mt-4 space-y-4">
+                        <div className="space-y-2">
+                          <input
+                            id="signature-text"
+                            value={signatureText}
+                            onChange={(e) => setSignatureText(e.target.value)}
+                            placeholder="Type your full name"
+                            disabled={signing}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                          />
+                          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                            <button
+                              type="button"
+                              onClick={() => setSignatureStyle("script")}
+                              className={`rounded border px-2 py-1 ${signatureStyle === "script" ? "border-primary text-primary" : "border-border"
+                                }`}
+                            >
+                              <span className="italic font-semibold">
+                                {signatureText || "Script style"}
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSignatureStyle("bold")}
+                              className={`rounded border px-2 py-1 ${signatureStyle === "bold" ? "border-primary text-primary" : "border-border"
+                                }`}
+                            >
+                              <span className="font-bold tracking-wide">
+                                {signatureText || "Bold style"}
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSignatureStyle("simple")}
+                              className={`rounded border px-2 py-1 ${signatureStyle === "simple" ? "border-primary text-primary" : "border-border"
+                                }`}
+                            >
+                              <span className="font-medium">
+                                {signatureText || "Simple style"}
+                              </span>
+                            </button>
+                          </div>
+                        </div>
+                      </TabsContent>
+                      <TabsContent value="draw" className="mt-4">
+                        <SignaturePad
+                          onSave={setSignatureDataUri}
+                          onClear={() => setSignatureDataUri(null)}
+                        />
+                      </TabsContent>
+                      <TabsContent value="upload" className="mt-4">
+                        <SignatureUpload
+                          onSave={setSignatureDataUri}
+                          onClear={() => setSignatureDataUri(null)}
+                        />
+                      </TabsContent>
+                    </Tabs>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="sign-annotation">Comment (optional)</Label>

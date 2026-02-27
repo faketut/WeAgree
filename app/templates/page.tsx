@@ -48,7 +48,10 @@ export default async function TemplatesPage() {
                     {t.created_at ? new Date(t.created_at as string).toLocaleDateString() : null}
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="pt-0">
+                <CardContent className="flex gap-2 pt-0">
+                  <Button asChild variant="default" size="sm">
+                    <Link href={`/create?templateId=${t.id}`}>Use</Link>
+                  </Button>
                   <Button asChild variant="outline" size="sm">
                     <Link href={`/templates/${t.id}/edit`}>Edit</Link>
                   </Button>

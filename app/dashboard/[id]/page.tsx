@@ -7,9 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SharePanel } from "./share-panel";
 import { ArrowLeft, FileText, Clock, CheckCircle, Trash2 } from "lucide-react";
+import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { deleteAgreement } from "@/app/actions/agreements";
 import type { AgreementStatus } from "@/lib/types/database";
 import { kmsDecryptAgreementContent } from "@/lib/signing/kms-client";
+import { PDFDownloadButton } from "@/components/pdf-download-button";
 
 function getBaseUrl(): string {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "");
@@ -100,11 +102,19 @@ export default async function AgreementSharePage({
   };
   const statusConf = STATUS_BADGE[agreement.status as AgreementStatus];
 
-  let signatures: { signer_id: string; signer_name: string; signed_at: string; annotation?: string | null; email?: string | null }[] = [];
+  let signatures: {
+    signer_id: string;
+    signer_name: string;
+    signed_at: string;
+    annotation?: string | null;
+    email?: string | null;
+    signature_display?: string | null;
+    signature_style?: string | null;
+  }[] = [];
   if (agreement.status === "signed") {
     const { data: sigs } = await supabase
       .from("signatures")
-      .select("signer_id, signer_name, signed_at, annotation, profiles(email)")
+      .select("signer_id, signer_name, signed_at, annotation, signature_display, signature_style, profiles(email)")
       .eq("agreement_id", agreement.id)
       .order("signed_at", { ascending: true });
     signatures =
@@ -113,6 +123,8 @@ export default async function AgreementSharePage({
         signer_name: s.signer_name,
         signed_at: s.signed_at,
         annotation: s.annotation,
+        signature_display: s.signature_display,
+        signature_style: s.signature_style,
         email: s.profiles?.email ?? null,
       })) ?? [];
   }
@@ -129,8 +141,15 @@ export default async function AgreementSharePage({
         </Link>
         <Card>
           <CardHeader className="space-y-1.5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <CardTitle className="text-xl">{agreement.title}</CardTitle>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <CardTitle className="text-xl">{agreement.title}</CardTitle>
+                <PDFDownloadButton
+                  contentId="agreement-printable-area"
+                  filename={agreement.title.replace(/\s+/g, "_")}
+                  title={agreement.title}
+                />
+              </div>
               {statusConf && (() => {
                 const Icon = statusConf.icon;
                 return (
@@ -145,10 +164,60 @@ export default async function AgreementSharePage({
               Created {new Date(agreement.created_at).toLocaleString()}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="rounded-lg border bg-muted/30 p-4">
-              <pre className="whitespace-pre-wrap font-sans text-sm">{content}</pre>
+          <CardContent className="space-y-6" id="agreement-printable-area">
+            <div className="round-lg border bg-muted/30 p-4">
+              <MarkdownRenderer content={content} />
             </div>
+            {agreement.status === "signed" && signatures.length > 0 && (
+              <div className="rounded-lg border bg-muted/20 p-4">
+                <p className="mb-2 text-sm font-medium">Signatures</p>
+                <ul className="space-y-2 text-sm">
+                  {signatures.map((s, i) => (
+                    <li
+                      key={i}
+                      className="border-b border-border/50 pb-2 last:border-0 last:pb-0"
+                    >
+                      <div className="flex flex-col gap-1">
+                        {s.signature_display?.startsWith("data:image/") ? (
+                          <img
+                            src={s.signature_display}
+                            alt={`Signature by ${s.signer_name}`}
+                            className="h-12 w-auto object-contain self-start dark:invert"
+                          />
+                        ) : (
+                          <span
+                            className={
+                              s.signature_style === "bold"
+                                ? "font-bold tracking-wide"
+                                : s.signature_style === "simple"
+                                  ? "font-medium"
+                                  : "italic font-semibold"
+                            }
+                          >
+                            {s.signature_display || s.signer_name}
+                          </span>
+                        )}
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <span className="font-medium text-foreground">
+                            {s.signer_name}{" "}
+                            <span className="text-xs font-normal text-muted-foreground font-mono">
+                              ({s.signer_id.substring(0, 8)}...
+                              {s.email ? ` · ${s.email}` : ""})
+                            </span>
+                          </span>
+                          <span>— {new Date(s.signed_at).toLocaleString()}</span>
+                        </div>
+                      </div>
+                      {s.annotation != null && s.annotation.trim() !== "" && (
+                        <p className="mt-1 text-muted-foreground">{s.annotation}</p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </CardContent>
+          <CardContent className="pt-0 space-y-4">
             {agreement.status === "pending" && (
               <SharePanel signUrl={signUrl} agreementId={agreement.id} />
             )}
@@ -168,34 +237,6 @@ export default async function AgreementSharePage({
                   Delete pending agreement
                 </Button>
               </form>
-            )}
-            {agreement.status === "signed" && signatures.length > 0 && (
-              <div className="rounded-lg border bg-muted/20 p-4">
-                <p className="mb-2 text-sm font-medium">Signatures</p>
-                <ul className="space-y-2 text-sm">
-                  {signatures.map((s, i) => (
-                    <li
-                      key={i}
-                      className="border-b border-border/50 pb-2 last:border-0 last:pb-0"
-                    >
-                      <span className="font-medium">
-                        {s.signer_name}{" "}
-                        <span className="text-xs text-muted-foreground">
-                          ({s.signer_id}
-                          {s.email ? ` · ${s.email}` : ""})
-                        </span>
-                      </span>
-                      <span className="text-muted-foreground">
-                        {" "}
-                        — {new Date(s.signed_at).toLocaleString()}
-                      </span>
-                      {s.annotation != null && s.annotation.trim() !== "" && (
-                        <p className="mt-1 text-muted-foreground">{s.annotation}</p>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
             )}
           </CardContent>
         </Card>

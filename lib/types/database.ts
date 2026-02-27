@@ -32,6 +32,10 @@ export interface Agreement {
   status: AgreementStatus;
   created_at: string;
   signed_at: string | null;
+  required_signatures: number;
+  is_encrypted: boolean;
+  encrypted_content: string | null;
+  encryption_kms_key_id: string | null;
 }
 
 export interface Signature {
@@ -41,4 +45,22 @@ export interface Signature {
   signer_name: string;
   signed_at: string;
   signature_image_url: string | null;
+  slot_index: number | null;
+  annotation: string | null;
+  signature_display: string | null;
+  signature_style: string | null;
+  kms_key_id: string | null;
+  signature_bytes: string | null; // stored as bytea in DB
+  signing_payload: any | null;    // stored as jsonb in DB
+  signing_timestamp: string | null;
+  signing_nonce: string | null;
+}
+
+export interface SigningKey {
+  id: string;
+  kms_key_id: string;
+  algorithm: string;
+  status: "active" | "retired" | "revoked";
+  created_at: string;
+  rotated_at: string | null;
 }

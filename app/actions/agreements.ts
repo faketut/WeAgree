@@ -9,6 +9,11 @@ import {
 } from "@/lib/signing/kms-client";
 import { countSignatureSlots } from "@/lib/signaturePlaceholders";
 import crypto from "node:crypto";
+import {
+  sendSignatureRequestEmail,
+  sendAgreementFinalizedEmail,
+} from "@/lib/email/email-utils";
+import type { Agreement, Signature, AgreementStatus, Profile } from "@/lib/types/database";
 
 function sha256Hex(content: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -95,7 +100,41 @@ export async function createAgreement(formData: FormData) {
   return { success: true, id: agreement.id };
 }
 
-export async function publishAgreement(agreementId: string) {
+export async function createDraftAgreement(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  await ensureProfile(supabase, user);
+
+  const title = (formData.get("title") as string)?.trim();
+  const content = (formData.get("content") as string)?.trim();
+  if (!title) return { error: "Title is required" };
+  if (!content) return { error: "Content is required" };
+
+  const contentHash = await sha256Hex(content);
+
+  const { data: agreement, error } = await supabase
+    .from("agreements")
+    .insert({
+      creator_id: user.id,
+      title,
+      content,
+      content_hash: contentHash,
+      status: "draft",
+    })
+    .select("id")
+    .single();
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard");
+  return { success: true, id: agreement.id };
+}
+
+export async function publishAgreement(agreementId: string, inviteEmail?: string) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -104,7 +143,7 @@ export async function publishAgreement(agreementId: string) {
 
   const { data: row, error: fetchError } = await supabase
     .from("agreements")
-    .select("id, status, content, required_signatures")
+    .select("id, status, content, required_signatures, title")
     .eq("id", agreementId)
     .eq("creator_id", user.id)
     .single();
@@ -132,17 +171,62 @@ export async function publishAgreement(agreementId: string) {
   if (updateError) return { error: updateError.message };
 
   const autoSignResult = await signAgreement(agreementId, null, null, null, 0);
-  if (
-    autoSignResult?.error &&
-    !autoSignResult.error.toLowerCase().includes("already signed") &&
-    !autoSignResult.error.toLowerCase().includes("signature spot has already been used")
-  ) {
-    return { error: autoSignResult.error };
+  if (autoSignResult.error) return { error: autoSignResult.error };
+
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
+  if (inviteEmail) {
+    const creatorName =
+      (user.user_metadata?.full_name as string) ||
+      (user.user_metadata?.name as string) ||
+      user.email?.split("@")[0] ||
+      "User";
+
+    await sendSignatureRequestEmail({
+      to: inviteEmail,
+      agreementTitle: row.title,
+      creatorName,
+      actionUrl: `${baseUrl}/sign/${agreementId}`,
+    });
   }
 
   revalidatePath("/dashboard");
   revalidatePath(`/dashboard/${agreementId}`);
-  return { success: true };
+  return { success: true, id: agreementId };
+}
+
+export async function sendSignatureRequest(agreementId: string, email: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { data: agreement, error } = await supabase
+    .from("agreements")
+    .select("title")
+    .eq("id", agreementId)
+    .eq("creator_id", user.id)
+    .single();
+
+  if (error || !agreement) return { error: "Agreement not found" };
+
+  const creatorName =
+    (user.user_metadata?.full_name as string) ||
+    (user.user_metadata?.name as string) ||
+    user.email?.split("@")[0] ||
+    "User";
+
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
+  const result = await sendSignatureRequestEmail({
+    to: email,
+    agreementTitle: agreement.title,
+    creatorName,
+    actionUrl: `${baseUrl}/sign/${agreementId}`,
+  });
+
+  return result;
 }
 
 export async function updateDraftAgreement(
@@ -220,7 +304,7 @@ export async function deleteAgreement(agreementId: string) {
     .single();
 
   if (fetchError || !row) return { error: "Agreement not found" };
-  if (row.status !== "pending") return { error: "Only pending agreements can be deleted" };
+  if (row.status !== "pending" && row.status !== "draft") return { error: "Only draft or pending agreements can be deleted" };
 
   const { error: deleteError } = await supabase
     .from("agreements")
@@ -270,11 +354,7 @@ export async function signAgreement(
   if (!agreementRow)
     return { error: "Agreement not found or not available for signing." };
 
-  const requiredSignatures =
-    typeof (agreementRow as any).required_signatures === "number" &&
-    (agreementRow as any).required_signatures >= 1
-      ? ((agreementRow as any).required_signatures as number)
-      : 1;
+  const requiredSignatures = (agreementRow as Agreement).required_signatures || 1;
 
   // Build signing payload for KMS
   const timestamp = new Date().toISOString();
@@ -355,18 +435,17 @@ export async function signAgreement(
     const { data: agreementAfter } = await supabase
       .from("agreements")
       .select(
-        "id, content, required_signatures, is_encrypted, encrypted_content, encryption_kms_key_id"
+        "id, title, creator_id, content, required_signatures, is_encrypted, encrypted_content, encryption_kms_key_id"
       )
       .eq("id", agreementId)
       .maybeSingle();
 
     if (
       agreementAfter &&
-      !(agreementAfter as any).is_encrypted &&
-      typeof (agreementAfter as any).required_signatures === "number"
+      !(agreementAfter as Agreement).is_encrypted &&
+      typeof (agreementAfter as Agreement).required_signatures === "number"
     ) {
-      const required = (agreementAfter as any)
-        .required_signatures as number;
+      const required = (agreementAfter as Agreement).required_signatures;
       const { count } = await supabase
         .from("signatures")
         .select("id", { count: "exact", head: true })
@@ -374,7 +453,7 @@ export async function signAgreement(
 
       if (typeof count === "number" && count >= required) {
         const plaintext = Buffer.from(
-          (agreementAfter as any).content as string,
+          (agreementAfter as Agreement).content,
           "utf8"
         );
         const { blob, keyId } = await kmsEncryptAgreementContent(
@@ -388,6 +467,22 @@ export async function signAgreement(
             is_encrypted: true,
           })
           .eq("id", agreementId);
+
+        // Send email to creator
+        const { data: creatorProfile } = await supabase
+          .from("profiles")
+          .select("email, full_name")
+          .eq("id", agreementAfter.creator_id)
+          .single();
+
+        if (creatorProfile?.email) {
+          const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+          await sendAgreementFinalizedEmail({
+            to: creatorProfile.email,
+            agreementTitle: agreementAfter.title,
+            actionUrl: `${baseUrl}/dashboard/${agreementId}`,
+          });
+        }
       }
     }
   } catch {

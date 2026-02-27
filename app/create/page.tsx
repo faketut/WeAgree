@@ -1,42 +1,35 @@
-"use client";
-
-import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { createAgreement } from "@/app/actions/agreements";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { FileText, ArrowLeft, AlertCircle } from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
+import { ArrowLeft } from "lucide-react";
+import { CreateAgreementForm } from "./create-agreement-form";
 
-export default function CreatePage() {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+type SearchParams = Record<string, string | string[] | undefined>;
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    const form = e.currentTarget;
-    const formData = new FormData(form);
-    const result = await createAgreement(formData);
-    setLoading(false);
-    if (result?.error) {
-      setError(result.error);
-      return;
-    }
-    if (result?.id) {
-      router.push(`/dashboard/${result.id}`);
+export default async function CreatePage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
+  const sp = await searchParams;
+  const templateIdRaw = sp.templateId;
+  const templateId = typeof templateIdRaw === "string" ? templateIdRaw : undefined;
+
+  let defaultTitle = "";
+  let defaultContent = "";
+  let fromTemplate: string | null = null;
+
+  if (templateId) {
+    const supabase = await createClient();
+    const { data: template } = await supabase
+      .from("templates")
+      .select("title, content")
+      .eq("id", templateId)
+      .maybeSingle();
+
+    if (template) {
+      defaultTitle = template.title as string;
+      defaultContent = template.content as string;
+      fromTemplate = defaultTitle;
     }
   }
 
@@ -50,54 +43,11 @@ export default function CreatePage() {
           <ArrowLeft className="h-4 w-4" />
           Back to Dashboard
         </Link>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-6 w-6" />
-              New Agreement
-            </CardTitle>
-            <CardDescription>
-              Create a new agreement. Content supports plain text or Markdown. Use{" "}
-              <code className="rounded bg-muted px-1">{`{{Name}}`}</code> for variables and{" "}
-              <code className="rounded bg-muted px-1">{`{{signature}}`}</code> to mark where
-              each signer should sign.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="title">Title</Label>
-                <Input
-                  id="title"
-                  name="title"
-                  placeholder="e.g. Service Agreement"
-                  required
-                  disabled={loading}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="content">Content</Label>
-                <Textarea
-                  id="content"
-                  name="content"
-                  rows={12}
-                  required
-                  disabled={loading}
-                  placeholder="Enter agreement content here. Use {{signature}} wherever a signer should sign."
-                />
-              </div>
-              {error && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-              <Button type="submit" disabled={loading} className="w-full">
-                {loading ? "Creating…" : "Create agreement"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+        <CreateAgreementForm
+          defaultTitle={defaultTitle}
+          defaultContent={defaultContent}
+          fromTemplate={fromTemplate}
+        />
       </div>
     </main>
   );

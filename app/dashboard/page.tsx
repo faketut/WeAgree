@@ -24,10 +24,13 @@ import {
   Search,
   Trash2,
   Edit3,
+  Send,
+  Pencil,
 } from "lucide-react";
-import type { AgreementStatus } from "@/lib/types/database";
-import { deleteAgreement } from "@/app/actions/agreements";
+import type { AgreementStatus, Agreement, Template } from "@/lib/types/database";
+import { deleteAgreement, publishAgreement } from "@/app/actions/agreements";
 import { deleteTemplate } from "@/app/actions/templates";
+import { PublishDraftDialog } from "./publish-draft-dialog";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +62,13 @@ const STATUS_CONFIG: Record<
     className?: string;
   }
 > = {
+  draft: {
+    label: "Draft",
+    icon: FileText,
+    variant: "secondary",
+    className:
+      "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800/40 dark:text-slate-300 dark:border-slate-700",
+  },
   pending: {
     label: "Pending",
     icon: Clock,
@@ -95,7 +105,7 @@ function parsePage(value: string | string[] | undefined): number {
 
 function buildHref(
   searchParams: SearchParams,
-  updates: Partial<Record<"search" | "pendingPage" | "signedPage" | "templatesPage", string>>
+  updates: Partial<Record<"search" | "draftsPage" | "pendingPage" | "signedPage" | "templatesPage", string>>
 ): string {
   const params = new URLSearchParams();
 
@@ -131,7 +141,7 @@ function PaginationControls({
 }: {
   page: number;
   total: number | null;
-  pageParam: "pendingPage" | "signedPage" | "templatesPage";
+  pageParam: "draftsPage" | "pendingPage" | "signedPage" | "templatesPage";
   searchParams: SearchParams;
 }) {
   if (!total || total <= PAGE_SIZE) {
@@ -230,6 +240,7 @@ export default async function DashboardPage({
         ? (searchRaw[0] ?? "").trim()
         : "";
 
+  const draftsPage = parsePage(sp.draftsPage);
   const pendingPage = parsePage(sp.pendingPage);
   const signedPage = parsePage(sp.signedPage);
   const templatesPage = parsePage(sp.templatesPage);
@@ -248,6 +259,15 @@ export default async function DashboardPage({
       </main>
     );
   }
+
+  const baseDraftsQuery = supabase
+    .from("agreements")
+    .select(
+      "id, title, status, created_at, signed_at, required_signatures",
+      { count: "exact" }
+    )
+    .eq("creator_id", user.id)
+    .eq("status", "draft");
 
   const basePendingQuery = supabase
     .from("agreements")
@@ -272,6 +292,9 @@ export default async function DashboardPage({
     .select("id, title, created_at", { count: "exact" })
     .eq("user_id", user.id);
 
+  const draftsQuery = search
+    ? baseDraftsQuery.ilike("title", `%${search}%`)
+    : baseDraftsQuery;
   const pendingQuery = search
     ? basePendingQuery.ilike("title", `%${search}%`)
     : basePendingQuery;
@@ -282,11 +305,15 @@ export default async function DashboardPage({
     ? baseTemplatesQuery.ilike("title", `%${search}%`)
     : baseTemplatesQuery;
 
+  const draftsFrom = (draftsPage - 1) * PAGE_SIZE;
   const pendingFrom = (pendingPage - 1) * PAGE_SIZE;
   const signedFrom = (signedPage - 1) * PAGE_SIZE;
   const templatesFrom = (templatesPage - 1) * PAGE_SIZE;
 
-  const [pendingRes, signedRes, templatesRes] = await Promise.all([
+  const [draftsRes, pendingRes, signedRes, templatesRes] = await Promise.all([
+    draftsQuery
+      .order("created_at", { ascending: false })
+      .range(draftsFrom, draftsFrom + PAGE_SIZE - 1),
     pendingQuery
       .order("created_at", { ascending: false })
       .range(pendingFrom, pendingFrom + PAGE_SIZE - 1),
@@ -298,39 +325,32 @@ export default async function DashboardPage({
       .range(templatesFrom, templatesFrom + PAGE_SIZE - 1),
   ]);
 
+  const mapAgreementRow = (r: Agreement): DashboardAgreementRow => ({
+    id: r.id,
+    title: r.title,
+    status: r.status,
+    created_at: r.created_at,
+    signed_at: r.signed_at,
+    required_signatures: r.required_signatures,
+  });
+
+  const drafts: DashboardAgreementRow[] =
+    (draftsRes.data as Agreement[] | null)?.map(mapAgreementRow) ?? [];
+  const draftsTotal = draftsRes.count ?? null;
+
   const pending: DashboardAgreementRow[] =
-    pendingRes.data?.map((r: any) => ({
-      id: r.id as string,
-      title: r.title as string,
-      status: r.status as AgreementStatus,
-      created_at: r.created_at as string,
-      signed_at: (r.signed_at as string | null) ?? null,
-      required_signatures:
-        typeof r.required_signatures === "number"
-          ? (r.required_signatures as number)
-          : null,
-    })) ?? [];
+    (pendingRes.data as Agreement[] | null)?.map(mapAgreementRow) ?? [];
   const pendingTotal = pendingRes.count ?? null;
 
   const signed: DashboardAgreementRow[] =
-    signedRes.data?.map((r: any) => ({
-      id: r.id as string,
-      title: r.title as string,
-      status: r.status as AgreementStatus,
-      created_at: r.created_at as string,
-      signed_at: (r.signed_at as string | null) ?? null,
-      required_signatures:
-        typeof r.required_signatures === "number"
-          ? (r.required_signatures as number)
-          : null,
-    })) ?? [];
+    (signedRes.data as Agreement[] | null)?.map(mapAgreementRow) ?? [];
   const signedTotal = signedRes.count ?? null;
 
   const templates: DashboardTemplateRow[] =
-    templatesRes.data?.map((t: any) => ({
-      id: t.id as string,
-      title: t.title as string,
-      created_at: (t.created_at as string | null) ?? null,
+    (templatesRes.data as Template[] | null)?.map((t) => ({
+      id: t.id,
+      title: t.title,
+      created_at: t.created_at,
     })) ?? [];
   const templatesTotal = templatesRes.count ?? null;
 
@@ -378,6 +398,113 @@ export default async function DashboardPage({
         </div>
 
         <Separator />
+
+        {/* Draft agreements table */}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="flex items-center gap-2 text-lg font-semibold">
+              <FileText className="h-5 w-5 text-muted-foreground" />
+              Drafts
+            </h2>
+          </div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>
+                Unpublished draft agreements. Edit the content, then publish
+                when ready to collect signatures.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {drafts.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No drafts.
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="border-b text-xs uppercase text-muted-foreground">
+                      <tr>
+                        <th className="py-2 pr-4 text-left font-medium">
+                          Title
+                        </th>
+                        <th className="py-2 px-4 text-left font-medium">
+                          Created
+                        </th>
+                        <th className="py-2 px-4 text-left font-medium">
+                          Status
+                        </th>
+                        <th className="py-2 pl-4 text-right font-medium">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {drafts.map((a) => (
+                        <tr
+                          key={a.id}
+                          className="border-b last:border-0 hover:bg-muted/40"
+                        >
+                          <td className="py-2 pr-4 align-middle">
+                            <Link
+                              href={`/dashboard/${a.id}`}
+                              className="line-clamp-1 font-medium hover:underline"
+                            >
+                              {a.title}
+                            </Link>
+                          </td>
+                          <td className="py-2 px-4 align-middle text-xs text-muted-foreground">
+                            {new Date(a.created_at).toLocaleString()}
+                          </td>
+                          <td className="py-2 px-4 align-middle">
+                            <StatusBadge status={a.status} />
+                          </td>
+                          <td className="py-2 pl-4 align-middle text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                asChild
+                                size="icon"
+                                variant="outline"
+                                className="h-8 w-8"
+                                title="Edit draft"
+                              >
+                                <Link href={`/dashboard/${a.id}/edit`}>
+                                  <Pencil className="h-4 w-4" />
+                                </Link>
+                              </Button>
+                              <PublishDraftDialog agreementId={a.id} />
+                              <form
+                                action={async () => {
+                                  "use server";
+                                  await deleteAgreement(a.id);
+                                }}
+                              >
+                                <Button
+                                  type="submit"
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-8 w-8 text-destructive"
+                                  title="Delete draft"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </form>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <PaginationControls
+                    page={draftsPage}
+                    total={draftsTotal}
+                    pageParam="draftsPage"
+                    searchParams={sp}
+                  />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </section>
 
         {/* Pending agreements table */}
         <section className="space-y-3">
@@ -631,6 +758,17 @@ export default async function DashboardPage({
                           </td>
                           <td className="py-2 pl-4 align-middle text-right">
                             <div className="flex justify-end gap-2">
+                              <Button
+                                asChild
+                                size="icon"
+                                variant="outline"
+                                className="h-8 w-8"
+                                title="Use template"
+                              >
+                                <Link href={`/create?templateId=${t.id}`}>
+                                  <FileCheck className="h-4 w-4" />
+                                </Link>
+                              </Button>
                               <Button
                                 asChild
                                 size="icon"
