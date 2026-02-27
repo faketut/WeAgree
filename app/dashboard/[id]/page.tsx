@@ -64,10 +64,39 @@ export default async function AgreementSharePage({
   const baseUrl = getBaseUrl();
   const signUrl = `${baseUrl}/sign/${agreement.id}`;
 
-  const STATUS_BADGE: Record<AgreementStatus, { label: string; icon: typeof FileText; variant: "secondary" | "destructive" | "default" | "outline"; className?: string }> = {
-    pending: { label: "Pending", icon: Clock, variant: "outline", className: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800" },
-    signed: { label: "Signed", icon: CheckCircle, variant: "default", className: "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800" },
-    voided: { label: "Voided", icon: FileText, variant: "destructive" },
+  const STATUS_BADGE: Record<
+    AgreementStatus,
+    {
+      label: string;
+      icon: typeof FileText;
+      variant: "secondary" | "destructive" | "default" | "outline";
+      className?: string;
+    }
+  > = {
+    draft: {
+      label: "Draft",
+      icon: FileText,
+      variant: "secondary",
+    },
+    pending: {
+      label: "Pending",
+      icon: Clock,
+      variant: "outline",
+      className:
+        "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800",
+    },
+    signed: {
+      label: "Signed",
+      icon: CheckCircle,
+      variant: "default",
+      className:
+        "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800",
+    },
+    voided: {
+      label: "Voided",
+      icon: FileText,
+      variant: "destructive",
+    },
   };
   const statusConf = STATUS_BADGE[agreement.status as AgreementStatus];
 
