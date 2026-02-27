@@ -3,7 +3,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { canonicalize } from "@/lib/signing/json-canonical";
-import { kmsSign } from "@/lib/signing/kms-client";
+import {
+  kmsSign,
+  kmsEncryptAgreementContent,
+} from "@/lib/signing/kms-client";
+import { countSignatureSlots } from "@/lib/signaturePlaceholders";
 import crypto from "node:crypto";
 
 function sha256Hex(content: string): Promise<string> {
@@ -43,13 +47,16 @@ export async function createAgreement(formData: FormData) {
 
   const title = (formData.get("title") as string)?.trim();
   const content = (formData.get("content") as string)?.trim();
-  const requiredSignaturesRaw = formData.get("required_signatures");
-  const requiredSignatures =
-    requiredSignaturesRaw != null
-      ? Math.max(1, parseInt(String(requiredSignaturesRaw), 10) || 1)
-      : 1;
   if (!title) return { error: "Title is required" };
   if (!content) return { error: "Content is required" };
+
+  const slotCount = countSignatureSlots(content);
+  if (slotCount <= 0) {
+    return {
+      error:
+        "Content must include at least one {{signature}} placeholder to indicate where signers should sign.",
+    };
+  }
 
   const contentHash = await sha256Hex(content);
 
@@ -61,12 +68,28 @@ export async function createAgreement(formData: FormData) {
       content,
       content_hash: contentHash,
       status: "pending",
-      required_signatures: requiredSignatures,
+      required_signatures: slotCount,
     })
     .select("id")
     .single();
 
   if (error) return { error: error.message };
+
+  // Auto-sign as the creator in the first available slot (index 0).
+  const autoSignResult = await signAgreement(
+    agreement.id,
+    null,
+    null,
+    null,
+    0
+  );
+  if (
+    autoSignResult?.error &&
+    !autoSignResult.error.toLowerCase().includes("already signed") &&
+    !autoSignResult.error.toLowerCase().includes("signature spot has already been used")
+  ) {
+    return { error: autoSignResult.error };
+  }
 
   revalidatePath("/dashboard");
   return { success: true, id: agreement.id };
@@ -81,7 +104,7 @@ export async function publishAgreement(agreementId: string) {
 
   const { data: row, error: fetchError } = await supabase
     .from("agreements")
-    .select("id, status")
+    .select("id, status, content, required_signatures")
     .eq("id", agreementId)
     .eq("creator_id", user.id)
     .single();
@@ -89,13 +112,33 @@ export async function publishAgreement(agreementId: string) {
   if (fetchError || !row) return { error: "Agreement not found" };
   if (row.status !== "draft") return { error: "Only drafts can be published" };
 
+  const slotCount = countSignatureSlots(row.content as string);
+  if (slotCount <= 0) {
+    return {
+      error:
+        "Draft content must include at least one {{signature}} placeholder before publishing.",
+    };
+  }
+
   const { error: updateError } = await supabase
     .from("agreements")
-    .update({ status: "pending" })
+    .update({
+      status: "pending",
+      required_signatures: slotCount,
+    })
     .eq("id", agreementId)
     .eq("creator_id", user.id);
 
   if (updateError) return { error: updateError.message };
+
+  const autoSignResult = await signAgreement(agreementId, null, null, null, 0);
+  if (
+    autoSignResult?.error &&
+    !autoSignResult.error.toLowerCase().includes("already signed") &&
+    !autoSignResult.error.toLowerCase().includes("signature spot has already been used")
+  ) {
+    return { error: autoSignResult.error };
+  }
 
   revalidatePath("/dashboard");
   revalidatePath(`/dashboard/${agreementId}`);
@@ -114,7 +157,7 @@ export async function updateDraftAgreement(
 
   const { data: row, error: fetchError } = await supabase
     .from("agreements")
-    .select("id, status")
+    .select("id, status, content")
     .eq("id", agreementId)
     .eq("creator_id", user.id)
     .single();
@@ -129,13 +172,23 @@ export async function updateDraftAgreement(
     required_signatures?: number;
   } = {};
   if (payload.title !== undefined) updates.title = payload.title.trim();
-  if (payload.content !== undefined) updates.content = payload.content.trim();
-  if (payload.required_signatures !== undefined)
-    updates.required_signatures = Math.max(1, payload.required_signatures);
 
-  if (updates.content !== undefined) {
-    updates.content_hash = await sha256Hex(updates.content);
+  const nextContent =
+    payload.content !== undefined ? payload.content.trim() : (row.content as string);
+
+  const slotCount = countSignatureSlots(nextContent);
+  if (slotCount <= 0) {
+    return {
+      error:
+        "Content must include at least one {{signature}} placeholder to indicate where signers should sign.",
+    };
   }
+
+  if (payload.content !== undefined) {
+    updates.content = nextContent;
+    updates.content_hash = await sha256Hex(nextContent);
+  }
+  updates.required_signatures = slotCount;
   if (Object.keys(updates).length === 0) return { success: true };
 
   const { error: updateError } = await supabase
@@ -186,7 +239,8 @@ export async function signAgreement(
   agreementId: string,
   annotation?: string | null,
   signatureDisplay?: string | null,
-  signatureStyle?: string | null
+  signatureStyle?: string | null,
+  slotIndex?: number | null
 ) {
   const supabase = await createClient();
   const {
@@ -209,11 +263,18 @@ export async function signAgreement(
   // Only pending or signed agreements can be signed (idempotent view: signers never see draft/voided)
   const { data: agreementRow } = await supabase
     .from("agreements")
-    .select("id, status, content_hash")
+    .select("id, status, content_hash, required_signatures")
     .eq("id", agreementId)
     .in("status", ["pending", "signed"])
     .maybeSingle();
-  if (!agreementRow) return { error: "Agreement not found or not available for signing." };
+  if (!agreementRow)
+    return { error: "Agreement not found or not available for signing." };
+
+  const requiredSignatures =
+    typeof (agreementRow as any).required_signatures === "number" &&
+    (agreementRow as any).required_signatures >= 1
+      ? ((agreementRow as any).required_signatures as number)
+      : 1;
 
   // Build signing payload for KMS
   const timestamp = new Date().toISOString();
@@ -246,6 +307,32 @@ export async function signAgreement(
 
   if (existingSig) return { error: "You have already signed." };
 
+  const normalizedSlotIndex =
+    typeof slotIndex === "number" && Number.isInteger(slotIndex)
+      ? slotIndex
+      : null;
+  if (
+    normalizedSlotIndex == null ||
+    normalizedSlotIndex < 0 ||
+    normalizedSlotIndex >= requiredSignatures
+  ) {
+    return { error: "Please choose a valid signature spot." };
+  }
+
+  const { data: existingSlot } = await supabase
+    .from("signatures")
+    .select("id")
+    .eq("agreement_id", agreementId)
+    .eq("slot_index", normalizedSlotIndex)
+    .maybeSingle();
+
+  if (existingSlot) {
+    return {
+      error:
+        "That signature spot has already been used. Please choose another one.",
+    };
+  }
+
   const { error: insertError } = await supabase.from("signatures").insert({
     agreement_id: agreementId,
     signer_id: user.id,
@@ -257,10 +344,55 @@ export async function signAgreement(
     signing_nonce: nonce,
     signature_display: signatureDisplay?.trim() || null,
     signature_style: signatureStyle || null,
+    slot_index: normalizedSlotIndex,
     ...(annotation != null && annotation.trim() !== "" && { annotation: annotation.trim() }),
   });
 
   if (insertError) return { error: insertError.message };
+
+  // If this signature completes the agreement, encrypt the content at rest.
+  try {
+    const { data: agreementAfter } = await supabase
+      .from("agreements")
+      .select(
+        "id, content, required_signatures, is_encrypted, encrypted_content, encryption_kms_key_id"
+      )
+      .eq("id", agreementId)
+      .maybeSingle();
+
+    if (
+      agreementAfter &&
+      !(agreementAfter as any).is_encrypted &&
+      typeof (agreementAfter as any).required_signatures === "number"
+    ) {
+      const required = (agreementAfter as any)
+        .required_signatures as number;
+      const { count } = await supabase
+        .from("signatures")
+        .select("id", { count: "exact", head: true })
+        .eq("agreement_id", agreementId);
+
+      if (typeof count === "number" && count >= required) {
+        const plaintext = Buffer.from(
+          (agreementAfter as any).content as string,
+          "utf8"
+        );
+        const { blob, keyId } = await kmsEncryptAgreementContent(
+          plaintext
+        );
+        await supabase
+          .from("agreements")
+          .update({
+            encrypted_content: blob,
+            encryption_kms_key_id: keyId,
+            is_encrypted: true,
+          })
+          .eq("id", agreementId);
+      }
+    }
+  } catch {
+    // Best-effort encryption: signing should still succeed even if encryption fails.
+  }
 
   // Revalidate sign page so every signer (on next load or refresh) sees the latest signed agreement
   revalidatePath("/dashboard");

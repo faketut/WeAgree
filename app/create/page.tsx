@@ -5,7 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createAgreement } from "@/app/actions/agreements";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -52,8 +58,9 @@ export default function CreatePage() {
             </CardTitle>
             <CardDescription>
               Create a new agreement. Content supports plain text or Markdown. Use{" "}
-              <code className="rounded bg-muted px-1">{`{{Name}}`}</code> for placeholder
-              variables.
+              <code className="rounded bg-muted px-1">{`{{Name}}`}</code> for variables and{" "}
+              <code className="rounded bg-muted px-1">{`{{signature}}`}</code> to mark where
+              each signer should sign.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -76,22 +83,8 @@ export default function CreatePage() {
                   rows={12}
                   required
                   disabled={loading}
-                  placeholder="Enter agreement content here. You can use {{Name}} for variables."
+                  placeholder="Enter agreement content here. Use {{signature}} wherever a signer should sign."
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="required_signatures">Required signatures</Label>
-                <Input
-                  id="required_signatures"
-                  name="required_signatures"
-                  type="number"
-                  min={1}
-                  defaultValue={1}
-                  disabled={loading}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Number of signers needed before the agreement is fully signed.
-                </p>
               </div>
               {error && (
                 <Alert variant="destructive">

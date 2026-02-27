@@ -16,7 +16,7 @@ export default async function EditDraftPage({
 
   const { data: agreement, error } = await supabase
     .from("agreements")
-    .select("id, title, content, status, required_signatures")
+    .select("id, title, content, status")
     .eq("id", id)
     .eq("creator_id", user.id)
     .single();
@@ -28,7 +28,6 @@ export default async function EditDraftPage({
       agreementId={agreement.id}
       initialTitle={agreement.title}
       initialContent={agreement.content}
-      initialRequiredSignatures={agreement.required_signatures ?? 1}
     />
   );
 }

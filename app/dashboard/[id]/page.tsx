@@ -9,6 +9,7 @@ import { SharePanel } from "./share-panel";
 import { ArrowLeft, FileText, Clock, CheckCircle, Trash2 } from "lucide-react";
 import { deleteAgreement } from "@/app/actions/agreements";
 import type { AgreementStatus } from "@/lib/types/database";
+import { kmsDecryptAgreementContent } from "@/lib/signing/kms-client";
 
 function getBaseUrl(): string {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "");
@@ -34,12 +35,31 @@ export default async function AgreementSharePage({
 
   const { data: agreement, error } = await supabase
     .from("agreements")
-    .select("id, title, content, status, created_at")
+    .select(
+      "id, title, content, status, created_at, is_encrypted, encrypted_content, encryption_kms_key_id"
+    )
     .eq("id", id)
     .eq("creator_id", user.id)
     .single();
 
   if (error || !agreement) notFound();
+
+  let content = agreement.content as string;
+  if (
+    (agreement as any).is_encrypted &&
+    (agreement as any).encrypted_content &&
+    (agreement as any).encryption_kms_key_id
+  ) {
+    try {
+      const decrypted = await kmsDecryptAgreementContent(
+        (agreement as any).encrypted_content as string
+      );
+      content = decrypted.toString("utf8");
+    } catch {
+      // Fallback to stored plaintext if decryption fails.
+      content = agreement.content as string;
+    }
+  }
 
   const baseUrl = getBaseUrl();
   const signUrl = `${baseUrl}/sign/${agreement.id}`;
@@ -98,7 +118,7 @@ export default async function AgreementSharePage({
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="rounded-lg border bg-muted/30 p-4">
-              <pre className="whitespace-pre-wrap font-sans text-sm">{agreement.content}</pre>
+              <pre className="whitespace-pre-wrap font-sans text-sm">{content}</pre>
             </div>
             {agreement.status === "pending" && (
               <SharePanel signUrl={signUrl} agreementId={agreement.id} />

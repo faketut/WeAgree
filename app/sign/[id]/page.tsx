@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { SignView } from "./sign-view";
 import type { AgreementStatus } from "@/lib/types/database";
+import { kmsDecryptAgreementContent } from "@/lib/signing/kms-client";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -83,10 +84,38 @@ export default async function SignPage({
   // Only pending and signed are returned by RPC and admin fallback; draft/voided => notFound
   if (!agreement) notFound();
 
+  // If agreement content has been encrypted at rest, decrypt it for display.
+  try {
+    const admin = createAdminClient();
+    const { data: enc } = await admin
+      .from("agreements")
+      .select("id, is_encrypted, encrypted_content, encryption_kms_key_id")
+      .eq("id", agreement.id)
+      .maybeSingle();
+    if (
+      enc &&
+      (enc as any).is_encrypted &&
+      (enc as any).encrypted_content &&
+      (enc as any).encryption_kms_key_id
+    ) {
+      const decrypted = await kmsDecryptAgreementContent(
+        (enc as any).encrypted_content as string
+      );
+      agreement = {
+        ...agreement,
+        content: decrypted.toString("utf8"),
+      };
+    }
+  } catch {
+    // If decryption fails, fall back to the stored content from RPC/admin selection.
+  }
+
   const supabase = await createClient();
   const { data: signaturesRaw } = await supabase
     .from("signatures")
-    .select("signer_id, signer_name, signed_at, annotation, signature_display, signature_style, profiles(email)")
+    .select(
+      "signer_id, signer_name, signed_at, annotation, signature_display, signature_style, slot_index, profiles(email)"
+    )
     .eq("agreement_id", agreement.id)
     .order("signed_at", { ascending: true });
 
@@ -98,6 +127,7 @@ export default async function SignPage({
       annotation: s.annotation,
       signature_display: s.signature_display,
       signature_style: s.signature_style,
+      slot_index: typeof s.slot_index === "number" ? (s.slot_index as number) : null,
       signer_email: s.profiles?.email ?? null,
     })) ?? [];
 

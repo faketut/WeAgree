@@ -5,7 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { updateDraftAgreement } from "@/app/actions/agreements";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -16,12 +22,10 @@ export function EditDraftForm({
   agreementId,
   initialTitle,
   initialContent,
-  initialRequiredSignatures,
 }: {
   agreementId: string;
   initialTitle: string;
   initialContent: string;
-  initialRequiredSignatures: number;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -34,9 +38,7 @@ export function EditDraftForm({
     const form = e.currentTarget;
     const title = (form.querySelector('[name="title"]') as HTMLInputElement)?.value?.trim();
     const content = (form.querySelector('[name="content"]') as HTMLTextAreaElement)?.value?.trim();
-    const requiredSignaturesRaw = (form.querySelector('[name="required_signatures"]') as HTMLInputElement)?.value;
-    const required_signatures = Math.max(1, parseInt(requiredSignaturesRaw ?? "1", 10) || 1);
-    const result = await updateDraftAgreement(agreementId, { title, content, required_signatures });
+    const result = await updateDraftAgreement(agreementId, { title, content });
     setLoading(false);
     if (result?.error) {
       setError(result.error);
@@ -63,7 +65,9 @@ export function EditDraftForm({
               Edit draft
             </CardTitle>
             <CardDescription>
-              Update title and content. When ready, publish from the agreement page.
+              Update title and content. Use{" "}
+              <code className="rounded bg-muted px-1">{`{{signature}}`}</code> wherever a signer
+              should sign. When ready, publish from the agreement page.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -88,22 +92,8 @@ export function EditDraftForm({
                   required
                   disabled={loading}
                   defaultValue={initialContent}
-                  placeholder="Enter agreement content here. You can use {{Name}} for variables."
+                  placeholder="Enter agreement content here. Use {{signature}} wherever a signer should sign."
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="required_signatures">Required signatures</Label>
-                <Input
-                  id="required_signatures"
-                  name="required_signatures"
-                  type="number"
-                  min={1}
-                  defaultValue={initialRequiredSignatures}
-                  disabled={loading}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Number of signers needed before the agreement is fully signed.
-                </p>
               </div>
               {error && (
                 <Alert variant="destructive">
