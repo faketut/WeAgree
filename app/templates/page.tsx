@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { ArrowLeft } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -29,9 +30,17 @@ export default async function TemplatesPage() {
     <main className="min-h-screen bg-muted/30 p-4 md:p-8">
       <div className="mx-auto max-w-3xl space-y-6">
         <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Templates</h1>
-            <p className="text-muted-foreground">Reusable agreement templates.</p>
+          <div className="flex items-center gap-4">
+            <Button asChild variant="ghost" size="icon" className="rounded-full">
+              <Link href="/">
+                <ArrowLeft className="h-5 w-5" />
+                <span className="sr-only">Back to home</span>
+              </Link>
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Templates</h1>
+              <p className="text-muted-foreground">Reusable agreement templates.</p>
+            </div>
           </div>
           <Button asChild>
             <Link href="/templates/new">New template</Link>
