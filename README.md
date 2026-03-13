@@ -1,4 +1,4 @@
-# We Agree
+# WeAgree
 
 **Secure Agreement Platform** — Create, share, and digitally sign agreements with trust and immutability.
 
@@ -8,7 +8,7 @@
 
 ## Overview
 
-We Agree is a web-based agreement platform that lets users create legally-oriented documents, share them via link or QR code, and collect cryptographically verified digital signatures. Every agreement is integrity-checked with SHA-256 hashing, signed with KMS-backed RSA-PSS signatures, and encrypted at rest with AES-256-GCM envelope encryption once fully signed.
+WeAgree is a web-based agreement platform that lets users create legally-oriented documents, share them via link or QR code, and collect cryptographically verified digital signatures. Every agreement is integrity-checked with SHA-256 hashing, signed with KMS-backed RSA-PSS signatures, and encrypted at rest with AES-256-GCM envelope encryption once fully signed.
 
 ### Key Features
 
