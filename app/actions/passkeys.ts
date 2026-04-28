@@ -107,22 +107,22 @@ export async function completePasskeyRegistration(
   }
 
   const info = verification.registrationInfo;
-  const cred = info.credential as {
-    id: ArrayBuffer | Uint8Array;
-    publicKey: Uint8Array;
-    counter: number;
-    transports?: string[];
-  };
-  const credentialId = Buffer.from(cred.id).toString("base64url");
-  const publicKey = Buffer.from(cred.publicKey);
+  // SimpleWebAuthn v9 registrationInfo shape:
+  // - credentialID: Uint8Array
+  // - credentialPublicKey: Uint8Array
+  // - counter: number
+  // - fmt: string
+  // - transports?: string[]
+  const credentialId = Buffer.from(info.credentialID).toString("base64url");
+  const publicKey = Buffer.from(info.credentialPublicKey);
 
   const { error: insErr } = await supabase.from("user_signing_credentials").insert({
     user_id: user.id,
     credential_id: credentialId,
     public_key_cose: publicKey,
-    counter: cred.counter,
-    transports: cred.transports ?? [],
-    attestation_format: (info as { fmt?: string }).fmt ?? null,
+    counter: info.counter,
+    transports: (info as { transports?: string[] }).transports ?? [],
+    attestation_format: info.fmt ?? null,
     nickname: "Passkey",
     status: "active",
   });
