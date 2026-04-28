@@ -165,11 +165,9 @@ export function SignView({
         );
         return;
       }
-      const opts = begin as { optionsJSON: string; challengeId: string };
+      const opts = begin as { options: any; challengeId: string };
       try {
-        const assertion = await startAuthentication({
-          optionsJSON: opts.optionsJSON,
-        });
+        const assertion = await startAuthentication(opts.options);
         passkeyPayload = { challengeId: opts.challengeId, assertion };
       } catch (e) {
         setSigning(false);

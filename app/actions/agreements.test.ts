@@ -9,19 +9,16 @@ describe("agreements server actions", () => {
   const mockUser = { id: "user-123", email: "test@example.com" };
   let singleCall = 0;
 
-  const mockSupabase = {
-    auth: {
-      getUser: jest.fn(),
-    },
-    from: jest.fn(() => mockSupabase),
-    upsert: jest.fn().mockReturnThis(),
-    insert: jest.fn().mockReturnThis(),
-    update: jest.fn().mockReturnThis(),
-    delete: jest.fn().mockReturnThis(),
-    select: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockReturnThis(),
-    single: jest.fn(),
-  };
+  const mockSupabase: any = {};
+  mockSupabase.auth = { getUser: jest.fn() };
+  mockSupabase.from = jest.fn(() => mockSupabase);
+  mockSupabase.upsert = jest.fn().mockReturnThis();
+  mockSupabase.insert = jest.fn().mockReturnThis();
+  mockSupabase.update = jest.fn().mockReturnThis();
+  mockSupabase.delete = jest.fn().mockReturnThis();
+  mockSupabase.select = jest.fn().mockReturnThis();
+  mockSupabase.eq = jest.fn().mockReturnThis();
+  mockSupabase.single = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();

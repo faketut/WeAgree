@@ -61,7 +61,7 @@ export async function beginPasskeyRegistration() {
 
   if (error || !ch) return { error: error?.message ?? "Failed to store challenge" };
 
-  return { optionsJSON: JSON.stringify(options), challengeId: ch.id as string };
+  return { options, challengeId: ch.id as string };
 }
 
 export async function completePasskeyRegistration(
@@ -175,7 +175,6 @@ export async function beginPasskeySignForAgreement(agreementId: string) {
   const allowCredentials = creds.map((c) => ({
     id: Buffer.from(c.credential_id as string, "base64url"),
     type: "public-key" as const,
-    transports: (c.transports as string[] | null) ?? undefined,
   }));
 
   const options = await generateAuthenticationOptions({
@@ -203,7 +202,7 @@ export async function beginPasskeySignForAgreement(agreementId: string) {
 
   if (error || !ch) return { error: error?.message ?? "Failed to store challenge" };
 
-  return { optionsJSON: JSON.stringify(options), challengeId: ch.id as string };
+  return { options, challengeId: ch.id as string };
 }
 
 export async function verifyPasskeyAssertionForUser(
@@ -274,9 +273,11 @@ export async function verifyPasskeyAssertionForUser(
       expectedChallenge,
       expectedOrigin: getWebAuthnExpectedOrigin(),
       expectedRPID: getWebAuthnRpId(),
-      credential: {
-        id: new Uint8Array(Buffer.from(cred.credential_id as string, "base64url")),
-        publicKey: new Uint8Array(publicKeyBuf),
+      authenticator: {
+        credentialID: new Uint8Array(
+          Buffer.from(cred.credential_id as string, "base64url")
+        ),
+        credentialPublicKey: new Uint8Array(publicKeyBuf),
         counter: Number(cred.counter ?? 0),
       },
       requireUserVerification: false,
@@ -299,11 +300,18 @@ export async function verifyPasskeyAssertionForUser(
 }
 
 export async function listPasskeys() {
+  type CredentialRow = {
+    id: string;
+    nickname: string | null;
+    created_at: string;
+    last_used_at: string | null;
+    status: string;
+  };
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated" as const, credentials: [] as const };
+  if (!user) return { error: "Not authenticated" as const, credentials: [] as CredentialRow[] };
 
   const { data, error } = await supabase
     .from("user_signing_credentials")
@@ -311,6 +319,6 @@ export async function listPasskeys() {
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
-  if (error) return { error: error.message, credentials: [] };
-  return { credentials: data ?? [] };
+  if (error) return { error: error.message, credentials: [] as CredentialRow[] };
+  return { credentials: (data ?? []) as CredentialRow[] };
 }
