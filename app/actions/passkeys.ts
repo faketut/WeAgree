@@ -32,7 +32,7 @@ export async function beginPasskeyRegistration() {
   const options = await generateRegistrationOptions({
     rpName: "WeAgree",
     rpID: getWebAuthnRpId(),
-    userID: new TextEncoder().encode(user.id),
+    userID: user.id,
     userName: user.email ?? profile?.email ?? user.id,
     userDisplayName:
       profile?.full_name ??
