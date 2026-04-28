@@ -37,6 +37,10 @@
     "react-signature-canvas": "^1.1.0-alpha.2",
     "remark-gfm": "^4.0.1",
     "resend": "^6.9.2",
+    "@simplewebauthn/browser": "^9.0.1",
+    "@simplewebauthn/server": "^9.0.3",
+    "@simplewebauthn/types": "^9.0.1",
+    "ethers": "^6.15.0",
     "supabase": "^2.76.8",
     "tailwind-merge": "^2.5.4"
   },

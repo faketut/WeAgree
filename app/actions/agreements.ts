@@ -1,19 +1,27 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { canonicalize } from "@/lib/signing/json-canonical";
-import {
-  kmsSign,
-  kmsEncryptAgreementContent,
-} from "@/lib/signing/kms-client";
+import { kmsEncryptAgreementContent, kmsSign } from "@/lib/signing/kms-client";
 import { countSignatureSlots } from "@/lib/signaturePlaceholders";
 import crypto from "node:crypto";
 import {
   sendSignatureRequestEmail,
   sendAgreementFinalizedEmail,
 } from "@/lib/email/email-utils";
-import type { Agreement, Signature, AgreementStatus, Profile } from "@/lib/types/database";
+import type { Agreement, AgreementStatus } from "@/lib/types/database";
+import { passkeySigningRequired } from "@/lib/passkey/rp";
+import { verifyPasskeyAssertionForUser } from "@/app/actions/passkeys";
+import type { AuthenticationResponseJSON } from "@simplewebauthn/types";
+import {
+  computeFinalProofHash,
+  computeSignerListHash,
+  type FinalProofPayload,
+  type FinalProofSignerEntry,
+} from "@/lib/anchoring/final-proof";
+import { submitFinalProofHash } from "@/lib/anchoring/chain";
 
 function sha256Hex(content: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -24,7 +32,10 @@ function sha256Hex(content: string): Promise<string> {
   });
 }
 
-function ensureProfile(supabase: Awaited<ReturnType<typeof createClient>>, user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> }) {
+function ensureProfile(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> }
+) {
   const fullName =
     (user.user_metadata?.full_name as string) ||
     (user.user_metadata?.name as string) ||
@@ -39,6 +50,38 @@ function ensureProfile(supabase: Awaited<ReturnType<typeof createClient>>, user:
     },
     { onConflict: "id" }
   );
+}
+
+async function syncAgreementMirror(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  agreementId: string,
+  patch: {
+    title: string;
+    content: string;
+    content_hash: string;
+    required_signatures: number;
+  }
+) {
+  await supabase
+    .from("agreements")
+    .update({
+      title: patch.title,
+      content: patch.content,
+      content_hash: patch.content_hash,
+      required_signatures: patch.required_signatures,
+    })
+    .eq("id", agreementId);
+}
+
+async function countSignaturesOnVersion(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  versionId: string
+): Promise<number> {
+  const { count } = await supabase
+    .from("signatures")
+    .select("id", { count: "exact", head: true })
+    .eq("agreement_version_id", versionId);
+  return typeof count === "number" ? count : 0;
 }
 
 export async function createAgreement(formData: FormData) {
@@ -65,28 +108,53 @@ export async function createAgreement(formData: FormData) {
 
   const contentHash = await sha256Hex(content);
 
-  const { data: agreement, error } = await supabase
+  const { data: root, error: rootErr } = await supabase
     .from("agreements")
     .insert({
       creator_id: user.id,
       title,
       content,
       content_hash: contentHash,
-      status: "pending",
+      status: "pending" as AgreementStatus,
       required_signatures: slotCount,
     })
     .select("id")
     .single();
 
-  if (error) return { error: error.message };
+  if (rootErr || !root) return { error: rootErr?.message ?? "Insert failed" };
 
-  // Auto-sign as the creator in the first available slot (index 0).
+  const { data: ver, error: verErr } = await supabase
+    .from("agreement_versions")
+    .insert({
+      agreement_id: root.id,
+      version_number: 1,
+      title,
+      content,
+      content_hash: contentHash,
+      status: "open_for_signing",
+      required_signatures: slotCount,
+      published_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+
+  if (verErr || !ver) {
+    await supabase.from("agreements").delete().eq("id", root.id);
+    return { error: verErr?.message ?? "Version insert failed" };
+  }
+
+  await supabase
+    .from("agreements")
+    .update({ current_version_id: ver.id })
+    .eq("id", root.id);
+
   const autoSignResult = await signAgreement(
-    agreement.id,
+    root.id,
     null,
     null,
     null,
-    0
+    0,
+    null
   );
   if (
     autoSignResult?.error &&
@@ -97,7 +165,7 @@ export async function createAgreement(formData: FormData) {
   }
 
   revalidatePath("/dashboard");
-  return { success: true, id: agreement.id };
+  return { success: true, id: root.id };
 }
 
 export async function createDraftAgreement(formData: FormData) {
@@ -114,24 +182,57 @@ export async function createDraftAgreement(formData: FormData) {
   if (!title) return { error: "Title is required" };
   if (!content) return { error: "Content is required" };
 
+  const slotCount = countSignatureSlots(content);
+  if (slotCount <= 0) {
+    return {
+      error:
+        "Content must include at least one {{signature}} placeholder to indicate where signers should sign.",
+    };
+  }
+
   const contentHash = await sha256Hex(content);
 
-  const { data: agreement, error } = await supabase
+  const { data: root, error: rootErr } = await supabase
     .from("agreements")
     .insert({
       creator_id: user.id,
       title,
       content,
       content_hash: contentHash,
-      status: "draft",
+      status: "draft" as AgreementStatus,
+      required_signatures: slotCount,
     })
     .select("id")
     .single();
 
-  if (error) return { error: error.message };
+  if (rootErr || !root) return { error: rootErr?.message ?? "Insert failed" };
+
+  const { data: ver, error: verErr } = await supabase
+    .from("agreement_versions")
+    .insert({
+      agreement_id: root.id,
+      version_number: 1,
+      title,
+      content,
+      content_hash: contentHash,
+      status: "draft",
+      required_signatures: slotCount,
+    })
+    .select("id")
+    .single();
+
+  if (verErr || !ver) {
+    await supabase.from("agreements").delete().eq("id", root.id);
+    return { error: verErr?.message ?? "Version insert failed" };
+  }
+
+  await supabase
+    .from("agreements")
+    .update({ current_version_id: ver.id })
+    .eq("id", root.id);
 
   revalidatePath("/dashboard");
-  return { success: true, id: agreement.id };
+  return { success: true, id: root.id };
 }
 
 export async function publishAgreement(agreementId: string, inviteEmail?: string) {
@@ -143,15 +244,23 @@ export async function publishAgreement(agreementId: string, inviteEmail?: string
 
   const { data: row, error: fetchError } = await supabase
     .from("agreements")
-    .select("id, status, content, required_signatures, title")
+    .select("id, status, current_version_id, title")
     .eq("id", agreementId)
     .eq("creator_id", user.id)
     .single();
 
-  if (fetchError || !row) return { error: "Agreement not found" };
+  if (fetchError || !row?.current_version_id) return { error: "Agreement not found" };
   if (row.status !== "draft") return { error: "Only drafts can be published" };
 
-  const slotCount = countSignatureSlots(row.content as string);
+  const { data: ver, error: vErr } = await supabase
+    .from("agreement_versions")
+    .select("id, content, title, content_hash")
+    .eq("id", row.current_version_id)
+    .single();
+
+  if (vErr || !ver) return { error: "Version not found" };
+
+  const slotCount = countSignatureSlots(ver.content as string);
   if (slotCount <= 0) {
     return {
       error:
@@ -159,18 +268,32 @@ export async function publishAgreement(agreementId: string, inviteEmail?: string
     };
   }
 
+  const { error: vUp } = await supabase
+    .from("agreement_versions")
+    .update({
+      status: "open_for_signing",
+      required_signatures: slotCount,
+      published_at: new Date().toISOString(),
+    })
+    .eq("id", ver.id);
+
+  if (vUp) return { error: vUp.message };
+
   const { error: updateError } = await supabase
     .from("agreements")
     .update({
       status: "pending",
       required_signatures: slotCount,
+      title: ver.title,
+      content: ver.content,
+      content_hash: ver.content_hash,
     })
     .eq("id", agreementId)
     .eq("creator_id", user.id);
 
   if (updateError) return { error: updateError.message };
 
-  const autoSignResult = await signAgreement(agreementId, null, null, null, 0);
+  const autoSignResult = await signAgreement(agreementId, null, null, null, 0, null);
   if (autoSignResult.error) return { error: autoSignResult.error };
 
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -184,7 +307,7 @@ export async function publishAgreement(agreementId: string, inviteEmail?: string
 
     await sendSignatureRequestEmail({
       to: inviteEmail,
-      agreementTitle: row.title,
+      agreementTitle: row.title as string,
       creatorName,
       actionUrl: `${baseUrl}/sign/${agreementId}`,
     });
@@ -241,24 +364,97 @@ export async function updateDraftAgreement(
 
   const { data: row, error: fetchError } = await supabase
     .from("agreements")
-    .select("id, status, content")
+    .select("id, status, current_version_id")
     .eq("id", agreementId)
     .eq("creator_id", user.id)
     .single();
 
-  if (fetchError || !row) return { error: "Agreement not found" };
-  if (row.status !== "draft") return { error: "Only drafts can be updated" };
+  if (fetchError || !row?.current_version_id) return { error: "Agreement not found" };
 
-  const updates: {
-    title?: string;
-    content?: string;
-    content_hash?: string;
-    required_signatures?: number;
-  } = {};
-  if (payload.title !== undefined) updates.title = payload.title.trim();
+  if (row.status === "draft") {
+    const { data: ver, error: vErr } = await supabase
+      .from("agreement_versions")
+      .select("id, content, title, status")
+      .eq("id", row.current_version_id)
+      .single();
+    if (vErr || !ver || ver.status !== "draft") {
+      return { error: "Only draft versions can be updated here." };
+    }
 
+    const nextTitle =
+      payload.title !== undefined ? payload.title.trim() : (ver.title as string);
+    const nextContent =
+      payload.content !== undefined
+        ? payload.content.trim()
+        : (ver.content as string);
+
+    const slotCount = countSignatureSlots(nextContent);
+    if (slotCount <= 0) {
+      return {
+        error:
+          "Content must include at least one {{signature}} placeholder to indicate where signers should sign.",
+      };
+    }
+
+    const contentHash = await sha256Hex(nextContent);
+
+    const { error: vUp } = await supabase
+      .from("agreement_versions")
+      .update({
+        title: nextTitle,
+        content: nextContent,
+        content_hash: contentHash,
+        required_signatures: slotCount,
+      })
+      .eq("id", ver.id);
+
+    if (vUp) return { error: vUp.message };
+
+    await syncAgreementMirror(supabase, agreementId, {
+      title: nextTitle,
+      content: nextContent,
+      content_hash: contentHash,
+      required_signatures: slotCount,
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath(`/dashboard/${agreementId}`);
+    revalidatePath(`/dashboard/${agreementId}/edit`);
+    return { success: true };
+  }
+
+  if (row.status === "pending") {
+    return updatePendingAgreementContent(supabase, user.id, agreementId, row.current_version_id, payload);
+  }
+
+  return { error: "Only draft or pending agreements can be updated." };
+}
+
+async function updatePendingAgreementContent(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  creatorId: string,
+  agreementId: string,
+  currentVersionId: string,
+  payload: { title?: string; content?: string; required_signatures?: number }
+) {
+  const { data: ver, error: vErr } = await supabase
+    .from("agreement_versions")
+    .select("id, agreement_id, version_number, content, title, status")
+    .eq("id", currentVersionId)
+    .single();
+
+  if (vErr || !ver || ver.status !== "open_for_signing") {
+    return { error: "This version is not open for editing." };
+  }
+
+  const sigCount = await countSignaturesOnVersion(supabase, ver.id as string);
+
+  const nextTitle =
+    payload.title !== undefined ? payload.title.trim() : (ver.title as string);
   const nextContent =
-    payload.content !== undefined ? payload.content.trim() : (row.content as string);
+    payload.content !== undefined
+      ? payload.content.trim()
+      : (ver.content as string);
 
   const slotCount = countSignatureSlots(nextContent);
   if (slotCount <= 0) {
@@ -268,20 +464,72 @@ export async function updateDraftAgreement(
     };
   }
 
-  if (payload.content !== undefined) {
-    updates.content = nextContent;
-    updates.content_hash = await sha256Hex(nextContent);
+  const contentHash = await sha256Hex(nextContent);
+
+  if (sigCount === 0) {
+    const { error: vUp } = await supabase
+      .from("agreement_versions")
+      .update({
+        title: nextTitle,
+        content: nextContent,
+        content_hash: contentHash,
+        required_signatures: slotCount,
+      })
+      .eq("id", ver.id);
+
+    if (vUp) return { error: vUp.message };
+
+    await syncAgreementMirror(supabase, agreementId, {
+      title: nextTitle,
+      content: nextContent,
+      content_hash: contentHash,
+      required_signatures: slotCount,
+    });
+  } else {
+    const nextNum = (ver.version_number as number) + 1;
+    const { error: oldErr } = await supabase
+      .from("agreement_versions")
+      .update({ status: "superseded" })
+      .eq("id", ver.id);
+    if (oldErr) return { error: oldErr.message };
+
+    const { data: newVer, error: insErr } = await supabase
+      .from("agreement_versions")
+      .insert({
+        agreement_id: agreementId,
+        version_number: nextNum,
+        title: nextTitle,
+        content: nextContent,
+        content_hash: contentHash,
+        status: "open_for_signing",
+        required_signatures: slotCount,
+        published_at: new Date().toISOString(),
+        supersedes_version_id: ver.id,
+      })
+      .select("id")
+      .single();
+
+    if (insErr || !newVer) return { error: insErr?.message ?? "Failed to create new version" };
+
+    await supabase
+      .from("agreements")
+      .update({
+        current_version_id: newVer.id,
+        required_signatures: slotCount,
+        title: nextTitle,
+        content: nextContent,
+        content_hash: contentHash,
+      })
+      .eq("id", agreementId)
+      .eq("creator_id", creatorId);
+
+    await syncAgreementMirror(supabase, agreementId, {
+      title: nextTitle,
+      content: nextContent,
+      content_hash: contentHash,
+      required_signatures: slotCount,
+    });
   }
-  updates.required_signatures = slotCount;
-  if (Object.keys(updates).length === 0) return { success: true };
-
-  const { error: updateError } = await supabase
-    .from("agreements")
-    .update(updates)
-    .eq("id", agreementId)
-    .eq("creator_id", user.id);
-
-  if (updateError) return { error: updateError.message };
 
   revalidatePath("/dashboard");
   revalidatePath(`/dashboard/${agreementId}`);
@@ -304,7 +552,8 @@ export async function deleteAgreement(agreementId: string) {
     .single();
 
   if (fetchError || !row) return { error: "Agreement not found" };
-  if (row.status !== "pending" && row.status !== "draft") return { error: "Only draft or pending agreements can be deleted" };
+  if (row.status !== "pending" && row.status !== "draft")
+    return { error: "Only draft or pending agreements can be deleted" };
 
   const { error: deleteError } = await supabase
     .from("agreements")
@@ -319,12 +568,18 @@ export async function deleteAgreement(agreementId: string) {
   return { success: true };
 }
 
+export type PasskeySignInput = {
+  challengeId: string;
+  assertion: AuthenticationResponseJSON;
+} | null;
+
 export async function signAgreement(
   agreementId: string,
   annotation?: string | null,
   signatureDisplay?: string | null,
   signatureStyle?: string | null,
-  slotIndex?: number | null
+  slotIndex?: number | null,
+  passkey: PasskeySignInput = null
 ) {
   const supabase = await createClient();
   const {
@@ -344,29 +599,69 @@ export async function signAgreement(
     (user.user_metadata?.full_name as string) ||
     (user.email ?? "Signer");
 
-  // Only pending or signed agreements can be signed (idempotent view: signers never see draft/voided)
   const { data: agreementRow } = await supabase
     .from("agreements")
-    .select("id, status, content_hash, required_signatures")
+    .select("id, status, current_version_id, creator_id")
     .eq("id", agreementId)
     .in("status", ["pending", "signed"])
     .maybeSingle();
-  if (!agreementRow)
+
+  if (!agreementRow?.current_version_id) {
     return { error: "Agreement not found or not available for signing." };
+  }
 
-  const requiredSignatures = (agreementRow as Agreement).required_signatures || 1;
+  const { data: versionRow } = await supabase
+    .from("agreement_versions")
+    .select(
+      "id, agreement_id, version_number, content_hash, required_signatures, status"
+    )
+    .eq("id", agreementRow.current_version_id)
+    .maybeSingle();
 
-  // Build signing payload for KMS
+  if (!versionRow || versionRow.status !== "open_for_signing") {
+    return { error: "This agreement version is not open for signing." };
+  }
+
+  const requiredSignatures = Number(versionRow.required_signatures) || 1;
+  let webauthnCredentialId: string | null = null;
+  let passkeyVerified = false;
+
+  const normalizedSlotIndex =
+    typeof slotIndex === "number" && Number.isInteger(slotIndex)
+      ? slotIndex
+      : null;
+
+  const sigCountBefore = await countSignaturesOnVersion(
+    supabase,
+    versionRow.id as string
+  );
+  const isCreatorFirstSlot =
+    normalizedSlotIndex === 0 &&
+    user.id === (agreementRow as { creator_id: string }).creator_id &&
+    sigCountBefore === 0;
+
+  if (passkeySigningRequired() && !isCreatorFirstSlot) {
+    if (!passkey?.challengeId || !passkey.assertion) {
+      return { error: "Passkey confirmation is required to sign." };
+    }
+    const v = await verifyPasskeyAssertionForUser(passkey.challengeId, passkey.assertion);
+    if ("error" in v) return { error: v.error };
+    webauthnCredentialId = v.credentialId;
+    passkeyVerified = true;
+  }
+
   const timestamp = new Date().toISOString();
   const nonce = crypto.randomUUID();
   const signingPayload = {
-    contract_hash: agreementRow.content_hash as string,
+    agreement_id: agreementId,
+    agreement_version_id: versionRow.id as string,
+    version_number: versionRow.version_number as number,
+    contract_hash: versionRow.content_hash as string,
     signer_id: user.id,
     timestamp,
     nonce,
   };
 
-  // Timestamp window check (5 minutes)
   const now = Date.now();
   const ts = Date.parse(signingPayload.timestamp);
   if (!Number.isFinite(ts) || Math.abs(now - ts) > 5 * 60 * 1000) {
@@ -376,21 +671,30 @@ export async function signAgreement(
   const canonicalJson = canonicalize(signingPayload);
   const dataBytes = Buffer.from(canonicalJson, "utf8");
 
-  const { signature, keyId } = await kmsSign(dataBytes);
+  let signatureBytes: Buffer | null = null;
+  let kmsKeyId: string | null = null;
+
+  if (passkeyVerified) {
+    signatureBytes = Buffer.from(
+      JSON.stringify({ assertion: passkey!.assertion }),
+      "utf8"
+    );
+    kmsKeyId = "passkey";
+  } else {
+    const { signature, keyId } = await kmsSign(dataBytes);
+    signatureBytes = signature;
+    kmsKeyId = keyId;
+  }
 
   const { data: existingSig } = await supabase
     .from("signatures")
     .select("id")
-    .eq("agreement_id", agreementId)
+    .eq("agreement_version_id", versionRow.id as string)
     .eq("signer_id", user.id)
     .maybeSingle();
 
   if (existingSig) return { error: "You have already signed." };
 
-  const normalizedSlotIndex =
-    typeof slotIndex === "number" && Number.isInteger(slotIndex)
-      ? slotIndex
-      : null;
   if (
     normalizedSlotIndex == null ||
     normalizedSlotIndex < 0 ||
@@ -402,7 +706,7 @@ export async function signAgreement(
   const { data: existingSlot } = await supabase
     .from("signatures")
     .select("id")
-    .eq("agreement_id", agreementId)
+    .eq("agreement_version_id", versionRow.id as string)
     .eq("slot_index", normalizedSlotIndex)
     .maybeSingle();
 
@@ -415,81 +719,177 @@ export async function signAgreement(
 
   const { error: insertError } = await supabase.from("signatures").insert({
     agreement_id: agreementId,
+    agreement_version_id: versionRow.id as string,
     signer_id: user.id,
     signer_name: signerName,
-    kms_key_id: keyId,
-    signature_bytes: signature,
+    kms_key_id: kmsKeyId,
+    signature_bytes: signatureBytes,
     signing_payload: signingPayload,
     signing_timestamp: timestamp,
     signing_nonce: nonce,
     signature_display: signatureDisplay?.trim() || null,
     signature_style: signatureStyle || null,
     slot_index: normalizedSlotIndex,
-    ...(annotation != null && annotation.trim() !== "" && { annotation: annotation.trim() }),
+    webauthn_credential_id: webauthnCredentialId,
+    passkey_verified: passkeyVerified,
+    ...(annotation != null &&
+      annotation.trim() !== "" && { annotation: annotation.trim() }),
   });
 
   if (insertError) return { error: insertError.message };
 
-  // If this signature completes the agreement, encrypt the content at rest.
   try {
     const { data: agreementAfter } = await supabase
       .from("agreements")
       .select(
-        "id, title, creator_id, content, required_signatures, is_encrypted, encrypted_content, encryption_kms_key_id"
+        "id, title, creator_id, status, current_version_id, required_signatures, is_encrypted, encrypted_content, encryption_kms_key_id"
       )
       .eq("id", agreementId)
       .maybeSingle();
 
+    if (!agreementAfter || agreementAfter.status !== "signed") {
+      revalidatePath("/dashboard");
+      revalidatePath(`/sign/${agreementId}`);
+      return { success: true };
+    }
+
+    const versionId = agreementAfter.current_version_id as string;
+    const { data: verAfter } = await supabase
+      .from("agreement_versions")
+      .select(
+        "id, content, content_hash, required_signatures, is_encrypted, version_number"
+      )
+      .eq("id", versionId)
+      .maybeSingle();
+
     if (
-      agreementAfter &&
-      !(agreementAfter as Agreement).is_encrypted &&
-      typeof (agreementAfter as Agreement).required_signatures === "number"
+      verAfter &&
+      !(verAfter as { is_encrypted?: boolean }).is_encrypted &&
+      typeof agreementAfter.required_signatures === "number"
     ) {
-      const required = (agreementAfter as Agreement).required_signatures;
-      const { count } = await supabase
+      const plaintext = Buffer.from(
+        (verAfter as { content: string }).content,
+        "utf8"
+      );
+      const { blob, keyId } = await kmsEncryptAgreementContent(plaintext);
+
+      await supabase
+        .from("agreement_versions")
+        .update({
+          encrypted_content: blob,
+          encryption_kms_key_id: keyId,
+          is_encrypted: true,
+        })
+        .eq("id", versionId);
+
+      await supabase
+        .from("agreements")
+        .update({
+          encrypted_content: blob,
+          encryption_kms_key_id: keyId,
+          is_encrypted: true,
+        })
+        .eq("id", agreementId);
+
+      const { data: sigRows } = await supabase
         .from("signatures")
-        .select("id", { count: "exact", head: true })
-        .eq("agreement_id", agreementId);
+        .select(
+          "signer_id, slot_index, signing_timestamp, webauthn_credential_id"
+        )
+        .eq("agreement_version_id", versionId)
+        .order("signed_at", { ascending: true });
 
-      if (typeof count === "number" && count >= required) {
-        const plaintext = Buffer.from(
-          (agreementAfter as Agreement).content,
-          "utf8"
-        );
-        const { blob, keyId } = await kmsEncryptAgreementContent(
-          plaintext
-        );
-        await supabase
+      const signers: FinalProofSignerEntry[] = (sigRows ?? []).map((s) => ({
+        signer_id: s.signer_id as string,
+        slot_index: typeof s.slot_index === "number" ? s.slot_index : null,
+        signing_timestamp: (s.signing_timestamp as string) ?? null,
+        credential_id: (s.webauthn_credential_id as string) ?? null,
+      }));
+
+      const signedAt =
+        (await supabase
           .from("agreements")
-          .update({
-            encrypted_content: blob,
-            encryption_kms_key_id: keyId,
-            is_encrypted: true,
-          })
-          .eq("id", agreementId);
+          .select("signed_at")
+          .eq("id", agreementId)
+          .single()
+          .then((r) => r.data?.signed_at as string)) ?? new Date().toISOString();
 
-        // Send email to creator
-        const { data: creatorProfile } = await supabase
-          .from("profiles")
-          .select("email, full_name")
-          .eq("id", agreementAfter.creator_id)
-          .single();
+      const proofPayload: FinalProofPayload = {
+        agreement_id: agreementId,
+        version_id: versionId,
+        version_number: (verAfter as { version_number: number }).version_number,
+        content_hash: (verAfter as { content_hash: string }).content_hash,
+        signers,
+        signed_at: signedAt,
+      };
 
-        if (creatorProfile?.email) {
-          const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-          await sendAgreementFinalizedEmail({
-            to: creatorProfile.email,
-            agreementTitle: agreementAfter.title,
-            actionUrl: `${baseUrl}/dashboard/${agreementId}`,
-          });
+      const finalProofHash = computeFinalProofHash(proofPayload);
+      const signerListHash = computeSignerListHash(signers);
+
+      const chain = await submitFinalProofHash(finalProofHash);
+
+      try {
+        const admin = createAdminClient();
+        const anchorRow = {
+          agreement_id: agreementId,
+          agreement_version_id: versionId,
+          chain_name: chain.chainName,
+          final_proof_hash: finalProofHash,
+          content_hash: proofPayload.content_hash,
+          signer_list_hash: signerListHash,
+          transaction_hash: chain.transactionHash,
+          block_number: chain.blockNumber,
+          anchor_status: "confirmed",
+          anchored_at: chain.anchoredAt,
+          submission_payload: proofPayload as unknown as Record<string, unknown>,
+          receipt_payload: chain as unknown as Record<string, unknown>,
+          updated_at: new Date().toISOString(),
+        };
+        const { error: insA } = await admin
+          .from("agreement_version_anchors")
+          .insert(anchorRow);
+        if (insA?.code === "23505") {
+          await admin
+            .from("agreement_version_anchors")
+            .update({
+              chain_name: anchorRow.chain_name,
+              final_proof_hash: anchorRow.final_proof_hash,
+              content_hash: anchorRow.content_hash,
+              signer_list_hash: anchorRow.signer_list_hash,
+              transaction_hash: anchorRow.transaction_hash,
+              block_number: anchorRow.block_number,
+              anchor_status: anchorRow.anchor_status,
+              anchored_at: anchorRow.anchored_at,
+              submission_payload: anchorRow.submission_payload,
+              receipt_payload: anchorRow.receipt_payload,
+              updated_at: anchorRow.updated_at,
+            })
+            .eq("agreement_version_id", versionId);
         }
+      } catch {
+        // Anchor persistence is best-effort if service role missing in local dev.
+      }
+
+      const { data: creatorProfile } = await supabase
+        .from("profiles")
+        .select("email, full_name")
+        .eq("id", agreementAfter.creator_id)
+        .single();
+
+      if (creatorProfile?.email) {
+        const baseUrl =
+          process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+        await sendAgreementFinalizedEmail({
+          to: creatorProfile.email,
+          agreementTitle: agreementAfter.title as string,
+          actionUrl: `${baseUrl}/dashboard/${agreementId}`,
+        });
       }
     }
   } catch {
-    // Best-effort encryption: signing should still succeed even if encryption fails.
+    // Best-effort finalize side effects
   }
 
-  // Revalidate sign page so every signer (on next load or refresh) sees the latest signed agreement
   revalidatePath("/dashboard");
   revalidatePath(`/sign/${agreementId}`);
   return { success: true };

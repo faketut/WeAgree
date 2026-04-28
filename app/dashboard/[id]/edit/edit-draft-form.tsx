@@ -22,10 +22,12 @@ export function EditDraftForm({
   agreementId,
   initialTitle,
   initialContent,
+  status,
 }: {
   agreementId: string;
   initialTitle: string;
   initialContent: string;
+  status: "draft" | "pending";
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -62,12 +64,15 @@ export function EditDraftForm({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-6 w-6" />
-              Edit draft
+              {status === "pending" ? "Edit pending agreement" : "Edit draft"}
             </CardTitle>
             <CardDescription>
               Update title and content. Use{" "}
               <code className="rounded bg-muted px-1">{`{{signature}}`}</code> wherever a signer
-              should sign. When ready, publish from the agreement page.
+              should sign.
+              {status === "draft"
+                ? " When ready, publish from the agreement page."
+                : " If others have already signed, saving creates a new version and they will need to sign again."}
             </CardDescription>
           </CardHeader>
           <CardContent>

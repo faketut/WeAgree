@@ -54,7 +54,8 @@ export default function LoginPage() {
         <CardHeader className="space-y-1.5 text-center">
           <CardTitle className="text-2xl">Sign in</CardTitle>
           <CardDescription>
-            Sign in with your GitHub account to create and manage agreements.
+            Sign in with your GitHub account to create and manage agreements. After signing in,
+            register a signing passkey under Settings so you can confirm signatures securely.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">

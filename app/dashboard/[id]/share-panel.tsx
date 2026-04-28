@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/button";
 import { Copy, Check, Send, Loader2, Mail } from "lucide-react";
@@ -57,6 +58,13 @@ export function SharePanel({
   return (
     <div className="space-y-4 rounded-lg border border-dashed border-border bg-muted/20 p-4">
       <p className="text-sm font-semibold">Share for signing</p>
+      <p className="text-xs text-muted-foreground">
+        Signers need a GitHub account and a registered signing passkey (
+        <Link href="/settings/passkeys" className="underline">
+          Settings → Passkeys
+        </Link>
+        ).
+      </p>
       <div className="flex flex-wrap items-start gap-6">
         <div className="flex flex-col items-center gap-2">
           <QRCodeSVG value={signUrl} size={160} level="M" />
