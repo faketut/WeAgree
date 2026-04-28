@@ -31,7 +31,7 @@ export function PasskeySettingsClient() {
     setListing(true);
     const res = await listPasskeys();
     setListing(false);
-    setCredentials(res.credentials ?? []);
+    setCredentials([...(res.credentials ?? [])]);
   }
 
   useEffect(() => {
@@ -49,11 +49,11 @@ export function PasskeySettingsClient() {
         setLoading(false);
         return;
       }
-      const { optionsJSON, challengeId } = begin as {
-        optionsJSON: string;
+      const { options, challengeId } = begin as {
+        options: any;
         challengeId: string;
       };
-      const registration = await startRegistration({ optionsJSON });
+      const registration = await startRegistration(options);
       const done = await completePasskeyRegistration(challengeId, registration);
       if ("error" in done && done.error) {
         setError(done.error);
