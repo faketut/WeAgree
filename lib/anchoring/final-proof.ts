@@ -5,7 +5,11 @@ export type FinalProofSignerEntry = {
   signer_id: string;
   slot_index: number | null;
   signing_timestamp: string | null;
-  credential_id: string | null;
+  signing_payload_hash: string | null;
+  signature_hash: string | null;
+  key_fingerprint: string | null;
+  key_version: number | null;
+  passkey_credential_id: string | null;
 };
 
 export type FinalProofPayload = {

@@ -5,12 +5,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { canonicalize } from "@/lib/signing/json-canonical";
 import { kmsEncryptAgreementContent, kmsSign } from "@/lib/signing/kms-client";
-import {
-  decryptPrivateKeyPem,
-  encryptPrivateKeyPem,
-  generateEd25519KeypairPem,
-  signWithEd25519Pem,
-} from "@/lib/signing/user-keypair";
+import { decryptPrivateKeyPem, signWithEd25519Pem } from "@/lib/signing/user-keypair";
+import { ensureProfile, ensureUserKeypair } from "@/lib/account/provision";
 import { countSignatureSlots } from "@/lib/signaturePlaceholders";
 import crypto from "node:crypto";
 import {
@@ -38,24 +34,8 @@ function sha256Hex(content: string): Promise<string> {
   });
 }
 
-function ensureProfile(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> }
-) {
-  const fullName =
-    (user.user_metadata?.full_name as string) ||
-    (user.user_metadata?.name as string) ||
-    user.email?.split("@")[0] ||
-    "User";
-  return supabase.from("profiles").upsert(
-    {
-      id: user.id,
-      full_name: fullName,
-      email: user.email ?? null,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "id" }
-  );
+function contentHashForFingerprint(publicKeyPem: string): Buffer {
+  return Buffer.from(publicKeyPem, "utf8");
 }
 
 async function syncAgreementMirror(
@@ -90,42 +70,8 @@ async function countSignaturesOnVersion(
   return typeof count === "number" ? count : 0;
 }
 
-async function ensureUserKeypair(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string
-): Promise<
-  | { ok: true; publicKeyPem: string; encryptedPrivateKey: string }
-  | { ok: false; error: string }
-> {
-  const { data: existing, error } = await supabase
-    .from("user_keypairs")
-    .select("public_key_pem, encrypted_private_key")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (error) return { ok: false, error: error.message };
-  if (existing?.public_key_pem && existing?.encrypted_private_key) {
-    return {
-      ok: true,
-      publicKeyPem: existing.public_key_pem as string,
-      encryptedPrivateKey: existing.encrypted_private_key as string,
-    };
-  }
-
-  try {
-    const kp = generateEd25519KeypairPem();
-    const enc = encryptPrivateKeyPem(kp.privateKeyPem);
-    const { error: insErr } = await supabase.from("user_keypairs").insert({
-      user_id: userId,
-      algorithm: "ed25519",
-      public_key_pem: kp.publicKeyPem,
-      encrypted_private_key: enc,
-      key_version: 1,
-    });
-    if (insErr) return { ok: false, error: insErr.message };
-    return { ok: true, publicKeyPem: kp.publicKeyPem, encryptedPrivateKey: enc };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Keypair init failed" };
-  }
+function sha256HexBuf(buf: Buffer): string {
+  return crypto.createHash("sha256").update(buf).digest("hex");
 }
 
 export async function createAgreement(formData: FormData) {
@@ -717,16 +663,17 @@ export async function signAgreement(
 
   const canonicalJson = canonicalize(signingPayload);
   const dataBytes = Buffer.from(canonicalJson, "utf8");
+  const signingPayloadHash = sha256HexBuf(dataBytes);
+  const signerKeyFingerprint = sha256HexBuf(
+    contentHashForFingerprint(kp.publicKeyPem)
+  );
 
   let signatureBytes: Buffer | null = null;
   let kmsKeyId: string | null = null;
 
   if (passkeyVerified) {
-    signatureBytes = Buffer.from(
-      JSON.stringify({ assertion: passkey!.assertion }),
-      "utf8"
-    );
-    kmsKeyId = "passkey";
+    // Passkey is strong authentication only; signing is still done by user keypair.
+    kmsKeyId = "user-ed25519+passkey";
   } else {
     try {
       const privPem = decryptPrivateKeyPem(kp.encryptedPrivateKey);
@@ -739,6 +686,8 @@ export async function signAgreement(
       kmsKeyId = keyId;
     }
   }
+  if (!signatureBytes) return { error: "Signature generation failed." };
+  const signatureHash = sha256HexBuf(signatureBytes);
 
   const { data: existingSig } = await supabase
     .from("signatures")
@@ -778,6 +727,10 @@ export async function signAgreement(
     signer_name: signerName,
     kms_key_id: kmsKeyId,
     signature_bytes: signatureBytes,
+    signing_payload_hash: signingPayloadHash,
+    signature_hash: signatureHash,
+    signer_key_fingerprint: signerKeyFingerprint,
+    signer_key_version: kp.keyVersion,
     signing_payload: signingPayload,
     signing_timestamp: timestamp,
     signing_nonce: nonce,
@@ -786,6 +739,7 @@ export async function signAgreement(
     slot_index: normalizedSlotIndex,
     webauthn_credential_id: webauthnCredentialId,
     passkey_verified: passkeyVerified,
+    passkey_assertion: passkeyVerified ? (passkey!.assertion as any) : null,
     ...(annotation != null &&
       annotation.trim() !== "" && { annotation: annotation.trim() }),
   });
@@ -848,7 +802,7 @@ export async function signAgreement(
       const { data: sigRows } = await supabase
         .from("signatures")
         .select(
-          "signer_id, slot_index, signing_timestamp, webauthn_credential_id"
+          "signer_id, slot_index, signing_timestamp, signing_payload_hash, signature_hash, signer_key_fingerprint, signer_key_version, webauthn_credential_id"
         )
         .eq("agreement_version_id", versionId)
         .order("signed_at", { ascending: true });
@@ -857,7 +811,14 @@ export async function signAgreement(
         signer_id: s.signer_id as string,
         slot_index: typeof s.slot_index === "number" ? s.slot_index : null,
         signing_timestamp: (s.signing_timestamp as string) ?? null,
-        credential_id: (s.webauthn_credential_id as string) ?? null,
+        signing_payload_hash: (s.signing_payload_hash as string) ?? null,
+        signature_hash: (s.signature_hash as string) ?? null,
+        key_fingerprint: (s.signer_key_fingerprint as string) ?? null,
+        key_version:
+          typeof (s.signer_key_version as any) === "number"
+            ? (s.signer_key_version as number)
+            : null,
+        passkey_credential_id: (s.webauthn_credential_id as string) ?? null,
       }));
 
       const signedAt =

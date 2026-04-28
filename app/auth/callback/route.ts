@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { ensureProfile, ensureUserKeypair } from "@/lib/account/provision";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -29,6 +30,17 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) {
+          await ensureProfile(supabase, user);
+          await ensureUserKeypair(supabase, user.id);
+        }
+      } catch {
+        // Best-effort provisioning
+      }
       return NextResponse.redirect(`${baseUrl}${path}`);
     }
   }

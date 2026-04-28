@@ -86,6 +86,11 @@ export interface Signature {
   signing_nonce: string | null;
   webauthn_credential_id: string | null;
   passkey_verified: boolean;
+  signing_payload_hash?: string | null;
+  signature_hash?: string | null;
+  signer_key_fingerprint?: string | null;
+  signer_key_version?: number | null;
+  passkey_assertion?: unknown | null;
 }
 
 export interface SigningKey {
