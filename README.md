@@ -224,6 +224,10 @@ Apply migration `008_versioned_agreements_passkeys_anchors.sql` (and earlier mig
 - **Agreement versions** live in `agreement_versions`. Pending agreements can be edited from the owner detail page; if others have already signed, saving creates a **new version** and previous signatures stay on the old version.
 - **Finalization** happens when all required signatures are collected; content is then encrypted at rest and a **final proof hash** is anchored (mock chain in dev, or your HTTP endpoint via `BLOCKCHAIN_RPC_URL`). Receipts are stored in `agreement_version_anchors`.
 
+### Proof export & offline verification
+
+- Download a finalized agreement’s proof JSON from:\n  `GET /api/agreements/<agreementId>/proof`\n- Verify the proof locally (Ed25519 signature checks + hash binding):\n\n```bash\nnpm run verify:proof -- ./weagree-proof-<agreementId>.json\n```
+
 ### Environment variables
 
 | Variable | Purpose |

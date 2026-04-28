@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SharePanel } from "./share-panel";
-import { ArrowLeft, FileText, Clock, CheckCircle, Trash2, Pencil, KeyRound } from "lucide-react";
+import { ArrowLeft, FileText, Clock, CheckCircle, Trash2, Pencil, KeyRound, Download } from "lucide-react";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { deleteAgreement } from "@/app/actions/agreements";
 import type { AgreementStatus } from "@/lib/types/database";
@@ -240,6 +240,14 @@ export default async function AgreementSharePage({
                 <p className="font-mono text-xs break-all text-muted-foreground">
                   Final proof hash: {anchor.final_proof_hash}
                 </p>
+                <div className="pt-2">
+                  <Button variant="outline" size="sm" asChild>
+                    <a href={`/api/agreements/${agreement.id}/proof`} className="gap-2">
+                      <Download className="h-4 w-4" />
+                      Download proof JSON
+                    </a>
+                  </Button>
+                </div>
               </div>
             )}
             {agreement.status === "signed" && signatures.length > 0 && (
