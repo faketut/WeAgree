@@ -139,18 +139,6 @@ drop policy if exists "agreements_all_creator" on public.agreements;
 create policy "agreements_all_creator"
   on public.agreements for all using (auth.uid() = creator_id);
 
-drop policy if exists "agreements_select_creator_pending_signer" on public.agreements;
-create policy "agreements_select_creator_pending_signer"
-  on public.agreements for select
-  using (
-    auth.uid() = creator_id
-    or status = 'pending'::public.agreement_status
-    or exists (
-      select 1 from public.signatures s
-      where s.agreement_id = agreements.id and s.signer_id = auth.uid()
-    )
-  );
-
 create index if not exists idx_agreements_creator_id on public.agreements (creator_id);
 create index if not exists idx_agreements_status on public.agreements (status);
 create index if not exists idx_agreements_created_at on public.agreements (created_at desc);
@@ -208,6 +196,18 @@ create table if not exists public.signatures (
 
 alter table public.signatures enable row level security;
 
+drop policy if exists "agreements_select_creator_pending_signer" on public.agreements;
+create policy "agreements_select_creator_pending_signer"
+  on public.agreements for select
+  using (
+    auth.uid() = creator_id
+    or status = 'pending'::public.agreement_status
+    or exists (
+      select 1 from public.signatures s
+      where s.agreement_id = agreements.id and s.signer_id = auth.uid()
+    )
+  );
+
 drop policy if exists "signatures_insert_own" on public.signatures;
 create policy "signatures_insert_own"
   on public.signatures for insert with check (auth.uid() = signer_id);
@@ -261,6 +261,8 @@ create table if not exists public.signing_keys (
   created_at timestamptz not null default now(),
   rotated_at timestamptz
 );
+
+alter table public.signing_keys enable row level security;
 
 -- -----------------------------------------------------------------------------
 -- 6. VERSIONED AGREEMENTS + PASSKEYS + ANCHORS (008)
