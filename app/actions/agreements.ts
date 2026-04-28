@@ -138,22 +138,6 @@ export async function createAgreement(formData: FormData) {
     .update({ current_version_id: ver.id })
     .eq("id", root.id);
 
-  const autoSignResult = await signAgreement(
-    root.id,
-    null,
-    null,
-    null,
-    0,
-    null
-  );
-  if (
-    autoSignResult?.error &&
-    !autoSignResult.error.toLowerCase().includes("already signed") &&
-    !autoSignResult.error.toLowerCase().includes("signature spot has already been used")
-  ) {
-    return { error: autoSignResult.error };
-  }
-
   revalidatePath("/dashboard");
   return { success: true, id: root.id };
 }
@@ -282,9 +266,6 @@ export async function publishAgreement(agreementId: string, inviteEmail?: string
     .eq("creator_id", user.id);
 
   if (updateError) return { error: updateError.message };
-
-  const autoSignResult = await signAgreement(agreementId, null, null, null, 0, null);
-  if (autoSignResult.error) return { error: autoSignResult.error };
 
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
