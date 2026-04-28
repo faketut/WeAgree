@@ -128,3 +128,12 @@ export interface AgreementVersionAnchor {
   created_at: string;
   updated_at: string;
 }
+
+export interface UserKeypair {
+  user_id: string;
+  algorithm: "ed25519";
+  public_key_pem: string;
+  encrypted_private_key: string;
+  key_version: number;
+  created_at: string;
+}

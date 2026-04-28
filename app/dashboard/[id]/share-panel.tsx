@@ -59,7 +59,7 @@ export function SharePanel({
     <div className="space-y-4 rounded-lg border border-dashed border-border bg-muted/20 p-4">
       <p className="text-sm font-semibold">Share for signing</p>
       <p className="text-xs text-muted-foreground">
-        Signers need a GitHub account and a registered signing passkey (
+        Signers need a GitHub account. Passkey is optional and provides stronger identity proof (
         <Link href="/settings/passkeys" className="underline">
           Settings → Passkeys
         </Link>

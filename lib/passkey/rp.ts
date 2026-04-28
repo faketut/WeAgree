@@ -23,5 +23,7 @@ export function getWebAuthnExpectedOrigin(): string {
 }
 
 export function passkeySigningRequired(): boolean {
-  return process.env.AGREEMENT_PASSKEY_REQUIRED !== "false";
+  // With auto-assigned per-user keypairs, passkey is an optional step-up.
+  // Set explicitly to "true" to enforce passkey signing.
+  return process.env.AGREEMENT_PASSKEY_REQUIRED === "true";
 }
