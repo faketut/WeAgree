@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { signAgreement } from "@/app/actions/agreements";
+import { beginPasskeySignForAgreement } from "@/app/actions/passkeys";
+import { startAuthentication } from "@simplewebauthn/browser";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +30,7 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import type { AgreementStatus } from "@/lib/types/database";
+import type { AuthenticationResponseJSON } from "@simplewebauthn/types";
 import { buildSignatureSlotMap } from "@/lib/signaturePlaceholders";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SignaturePad } from "@/components/signature-pad";
@@ -55,24 +58,41 @@ type SignatureRow = {
   slot_index?: number | null;
 };
 
+export type AgreementAnchorSummary = {
+  chain_name: string;
+  final_proof_hash: string;
+  transaction_hash: string | null;
+  block_number: number | null;
+  anchored_at: string | null;
+  anchor_status: string;
+};
+
 export type SignViewProps = {
   agreementId: string;
+  agreementVersionId: string;
+  versionNumber: number;
   title: string;
   content: string;
   contentHash: string;
   status: AgreementStatus;
   signatures?: SignatureRow[];
   requiredSignatures?: number;
+  passkeyRequired?: boolean;
+  anchor?: AgreementAnchorSummary | null;
 };
 
 export function SignView({
   agreementId,
+  agreementVersionId,
+  versionNumber,
   title,
   content,
   contentHash,
   status,
   signatures = [],
   requiredSignatures = 1,
+  passkeyRequired = true,
+  anchor = null,
 }: SignViewProps) {
   const router = useRouter();
   const [verifyState, setVerifyState] = useState<VerifyState>("idle");
@@ -131,12 +151,42 @@ export function SignView({
     }
 
     setSigning(true);
+    let passkeyPayload: {
+      challengeId: string;
+      assertion: AuthenticationResponseJSON;
+    } | null = null;
+
+    if (passkeyRequired) {
+      const begin = await beginPasskeySignForAgreement(agreementId);
+      if (!begin || ("error" in begin && begin.error)) {
+        setSigning(false);
+        setError(
+          begin && "error" in begin ? begin.error : "Passkey sign could not start."
+        );
+        return;
+      }
+      const opts = begin as { optionsJSON: string; challengeId: string };
+      try {
+        const assertion = await startAuthentication({
+          optionsJSON: opts.optionsJSON,
+        });
+        passkeyPayload = { challengeId: opts.challengeId, assertion };
+      } catch (e) {
+        setSigning(false);
+        setError(
+          e instanceof Error ? e.message : "Passkey authentication was cancelled."
+        );
+        return;
+      }
+    }
+
     const result = await signAgreement(
       agreementId,
       annotation.trim() || null,
       signatureDataUri || signatureText.trim(),
       signatureStyle,
-      selectedSlot
+      selectedSlot,
+      passkeyPayload
     );
     setSigning(false);
     if (result?.error) {
@@ -171,9 +221,10 @@ export function SignView({
                 : "Please read the agreement below. Verify content integrity before signing."}
             </CardDescription>
             <p className="text-xs text-muted-foreground">
-              Latest signed agreement — This view shows the current agreement and all signatures to
-              date. Anyone with the link can sign; refresh the page to see new signatures.
+              Version {versionNumber}. Sign in with GitHub, then confirm with your registered
+              passkey when you sign. Refresh the page to see new signatures.
             </p>
+            <span className="sr-only" data-agreement-version-id={agreementVersionId} />
             {!alreadySigned && requiredSignatures > 0 && (
               <p className="text-sm text-muted-foreground">
                 Signatures: {signatures.length} of {requiredSignatures} required
@@ -254,6 +305,31 @@ export function SignView({
                 </div>
               )}
             </div>
+
+            {alreadySigned && anchor && (
+              <div className="rounded-lg border bg-muted/20 p-4 text-sm space-y-1">
+                <p className="font-medium">Blockchain proof</p>
+                <p className="text-muted-foreground text-xs">
+                  Status: {anchor.anchor_status} · Chain: {anchor.chain_name}
+                </p>
+                {anchor.transaction_hash && (
+                  <p className="font-mono text-xs break-all">
+                    Tx: {anchor.transaction_hash}
+                  </p>
+                )}
+                {anchor.block_number != null && (
+                  <p className="text-xs">Block: {anchor.block_number}</p>
+                )}
+                {anchor.anchored_at && (
+                  <p className="text-xs text-muted-foreground">
+                    Anchored: {new Date(anchor.anchored_at).toLocaleString()}
+                  </p>
+                )}
+                <p className="font-mono text-xs break-all text-muted-foreground">
+                  Final proof hash: {anchor.final_proof_hash}
+                </p>
+              </div>
+            )}
 
             {signatures.length > 0 && (
               <div className="rounded-lg border bg-muted/20 p-4">

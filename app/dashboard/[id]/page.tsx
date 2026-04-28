@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SharePanel } from "./share-panel";
-import { ArrowLeft, FileText, Clock, CheckCircle, Trash2 } from "lucide-react";
+import { ArrowLeft, FileText, Clock, CheckCircle, Trash2, Pencil, KeyRound } from "lucide-react";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { deleteAgreement } from "@/app/actions/agreements";
 import type { AgreementStatus } from "@/lib/types/database";
@@ -38,7 +38,7 @@ export default async function AgreementSharePage({
   const { data: agreement, error } = await supabase
     .from("agreements")
     .select(
-      "id, title, content, status, created_at, is_encrypted, encrypted_content, encryption_kms_key_id"
+      "id, title, content, status, created_at, is_encrypted, encrypted_content, encryption_kms_key_id, current_version_id, finalized_version_id, finalized_at"
     )
     .eq("id", id)
     .eq("creator_id", user.id)
@@ -46,19 +46,30 @@ export default async function AgreementSharePage({
 
   if (error || !agreement) notFound();
 
+  let versionNumber = 1;
+  if (agreement.current_version_id) {
+    const { data: verMeta } = await supabase
+      .from("agreement_versions")
+      .select("version_number")
+      .eq("id", agreement.current_version_id as string)
+      .maybeSingle();
+    if (verMeta?.version_number != null) {
+      versionNumber = verMeta.version_number as number;
+    }
+  }
+
   let content = agreement.content as string;
   if (
-    (agreement as any).is_encrypted &&
-    (agreement as any).encrypted_content &&
-    (agreement as any).encryption_kms_key_id
+    (agreement as { is_encrypted?: boolean }).is_encrypted &&
+    (agreement as { encrypted_content?: string }).encrypted_content &&
+    (agreement as { encryption_kms_key_id?: string }).encryption_kms_key_id
   ) {
     try {
       const decrypted = await kmsDecryptAgreementContent(
-        (agreement as any).encrypted_content as string
+        (agreement as { encrypted_content: string }).encrypted_content
       );
       content = decrypted.toString("utf8");
     } catch {
-      // Fallback to stored plaintext if decryption fails.
       content = agreement.content as string;
     }
   }
@@ -111,11 +122,15 @@ export default async function AgreementSharePage({
     signature_display?: string | null;
     signature_style?: string | null;
   }[] = [];
-  if (agreement.status === "signed") {
+  const signatureVersionId =
+    (agreement.finalized_version_id as string | null) ??
+    (agreement.current_version_id as string | null);
+
+  if (agreement.status === "signed" && signatureVersionId) {
     const { data: sigs } = await supabase
       .from("signatures")
       .select("signer_id, signer_name, signed_at, annotation, signature_display, signature_style, profiles(email)")
-      .eq("agreement_id", agreement.id)
+      .eq("agreement_version_id", signatureVersionId)
       .order("signed_at", { ascending: true });
     signatures =
       sigs?.map((s: any) => ({
@@ -129,16 +144,45 @@ export default async function AgreementSharePage({
       })) ?? [];
   }
 
+  type AnchorSnapshot = {
+    chain_name: string;
+    final_proof_hash: string;
+    transaction_hash: string | null;
+    block_number: number | null;
+    anchored_at: string | null;
+    anchor_status: string;
+  };
+  let anchor: AnchorSnapshot | null = null;
+
+  if (agreement.status === "signed" && signatureVersionId) {
+    const { data: arow } = await supabase
+      .from("agreement_version_anchors")
+      .select(
+        "chain_name, final_proof_hash, transaction_hash, block_number, anchored_at, anchor_status"
+      )
+      .eq("agreement_version_id", signatureVersionId)
+      .maybeSingle();
+    if (arow) anchor = arow as AnchorSnapshot;
+  }
+
   return (
     <main className="min-h-screen bg-muted/30 p-4 md:p-8">
       <div className="mx-auto max-w-3xl space-y-6">
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Dashboard
-        </Link>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Dashboard
+          </Link>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/settings/passkeys" className="gap-2">
+              <KeyRound className="h-4 w-4" />
+              Signing passkeys
+            </Link>
+          </Button>
+        </div>
         <Card>
           <CardHeader className="space-y-1.5">
             <div className="flex flex-wrap items-center justify-between gap-4">
@@ -162,12 +206,42 @@ export default async function AgreementSharePage({
             </div>
             <CardDescription>
               Created {new Date(agreement.created_at).toLocaleString()}
+              {" · "}
+              <span className="font-medium">Version {versionNumber}</span>
+              {agreement.finalized_at && (
+                <>
+                  {" · "}
+                  Finalized {new Date(agreement.finalized_at as string).toLocaleString()}
+                </>
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6" id="agreement-printable-area">
             <div className="round-lg border bg-muted/30 p-4">
               <MarkdownRenderer content={content} />
             </div>
+            {agreement.status === "signed" && anchor && (
+              <div className="rounded-lg border bg-muted/20 p-4 text-sm space-y-1">
+                <p className="font-medium">Blockchain proof</p>
+                <p className="text-muted-foreground text-xs">
+                  {anchor.anchor_status} · {anchor.chain_name}
+                </p>
+                {anchor.transaction_hash && (
+                  <p className="font-mono text-xs break-all">Tx: {anchor.transaction_hash}</p>
+                )}
+                {anchor.block_number != null && (
+                  <p className="text-xs">Block: {anchor.block_number}</p>
+                )}
+                {anchor.anchored_at && (
+                  <p className="text-xs text-muted-foreground">
+                    Anchored: {new Date(anchor.anchored_at).toLocaleString()}
+                  </p>
+                )}
+                <p className="font-mono text-xs break-all text-muted-foreground">
+                  Final proof hash: {anchor.final_proof_hash}
+                </p>
+              </div>
+            )}
             {agreement.status === "signed" && signatures.length > 0 && (
               <div className="rounded-lg border bg-muted/20 p-4">
                 <p className="mb-2 text-sm font-medium">Signatures</p>
@@ -218,6 +292,16 @@ export default async function AgreementSharePage({
             )}
           </CardContent>
           <CardContent className="pt-0 space-y-4">
+            {agreement.status === "pending" && (
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/dashboard/${agreement.id}/edit`}>
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Edit agreement
+                  </Link>
+                </Button>
+              </div>
+            )}
             {agreement.status === "pending" && (
               <SharePanel signUrl={signUrl} agreementId={agreement.id} />
             )}

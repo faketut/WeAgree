@@ -215,6 +215,30 @@ npm run build && npm start
 
 ---
 
+## Versioned agreements, passkeys, and blockchain anchoring
+
+Apply migration `008_versioned_agreements_passkeys_anchors.sql` (and earlier migrations) on your Supabase database.
+
+- **GitHub** remains the account login (Supabase Auth).
+- **Passkeys (WebAuthn)** are used as per-user signing credentials. Register them at **Settings → Passkeys** (`/settings/passkeys`). The creator’s first signature on a new agreement may still use server-side KMS signing so publish/create flows work without a prior passkey prompt; additional signers must complete a passkey assertion when passkey signing is required.
+- **Agreement versions** live in `agreement_versions`. Pending agreements can be edited from the owner detail page; if others have already signed, saving creates a **new version** and previous signatures stay on the old version.
+- **Finalization** happens when all required signatures are collected; content is then encrypted at rest and a **final proof hash** is anchored (mock chain in dev, or your HTTP endpoint via `BLOCKCHAIN_RPC_URL`). Receipts are stored in `agreement_version_anchors`.
+
+### Environment variables
+
+| Variable | Purpose |
+|----------|---------|
+| `WEBAUTHN_RP_ID` | WebAuthn relying party ID (defaults from `NEXT_PUBLIC_SITE_URL` hostname, else `localhost`) |
+| `AGREEMENT_PASSKEY_REQUIRED` | Set to `false` to allow KMS-only signing without passkey (e.g. local dev). Defaults to required when unset. |
+| `NEXT_PUBLIC_AGREEMENT_PASSKEY_REQUIRED` | Client UI: set to `false` to skip WebAuthn in the browser (must match server for consistent behavior). |
+| `BLOCKCHAIN_RPC_URL` | Optional `POST` endpoint that accepts `{ "hash": "<final_proof_hash>" }` and returns chain receipt JSON |
+| `BLOCKCHAIN_CHAIN_NAME` | Display name for the chain when using the mock anchor |
+| `BLOCKCHAIN_EVM_RPC_URL` | (Vercel `/api/anchor`) EVM JSON-RPC endpoint URL (L2) |
+| `BLOCKCHAIN_EVM_PRIVATE_KEY` | (Vercel `/api/anchor`) Private key used to submit anchor tx |
+| `BLOCKCHAIN_EVM_CONTRACT_ADDRESS` | (Vercel `/api/anchor`) Deployed `WeAgreeAnchor` contract address |
+
+---
+
 ## License
 
 Private — All rights reserved.

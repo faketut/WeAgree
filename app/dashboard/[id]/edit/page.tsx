@@ -21,13 +21,15 @@ export default async function EditDraftPage({
     .eq("creator_id", user.id)
     .single();
 
-  if (error || !agreement || agreement.status !== "draft") notFound();
+  if (error || !agreement) notFound();
+  if (agreement.status !== "draft" && agreement.status !== "pending") notFound();
 
   return (
     <EditDraftForm
       agreementId={agreement.id}
       initialTitle={agreement.title}
       initialContent={agreement.content}
+      status={agreement.status as "draft" | "pending"}
     />
   );
 }
