@@ -11,11 +11,15 @@ type EncryptedBlob = {
 function getEncryptionKey(): Buffer {
   const raw = process.env.USER_KEY_ENCRYPTION_KEY?.trim();
   if (!raw) {
-    throw new Error("Missing USER_KEY_ENCRYPTION_KEY (base64 32 bytes).");
+    throw new Error(
+      "Missing USER_KEY_ENCRYPTION_KEY (base64 32 bytes). Set it in .env / Vercel env."
+    );
   }
   const key = Buffer.from(raw, "base64");
   if (key.length !== 32) {
-    throw new Error("USER_KEY_ENCRYPTION_KEY must be base64-encoded 32 bytes.");
+    throw new Error(
+      "USER_KEY_ENCRYPTION_KEY must be base64-encoded 32 bytes (44 chars, typically ending with '=')."
+    );
   }
   return key;
 }

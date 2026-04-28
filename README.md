@@ -12,7 +12,7 @@ WeAgree is a web-based agreement platform that lets users create legally-oriente
 
 ### Key Features
 
-- **Draft Agreements** — Save agreements as drafts and publish later with one-click auto-signing
+- **Draft Agreements** — Save agreements as drafts and publish later
 - **Template System** — Create reusable agreement templates; pre-fill new agreements from template data
 - **Markdown Support** — Rich text rendering for agreement content with GitHub Flavored Markdown (GFM)
 - **Diverse Signing Styles** — Sign by typing (3 fonts), drawing (signature pad), or uploading an image
