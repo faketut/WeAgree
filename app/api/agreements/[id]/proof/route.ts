@@ -7,6 +7,7 @@ import {
   type FinalProofPayload,
   type FinalProofSignerEntry,
 } from "@/lib/anchoring/final-proof";
+import { decodeByteaField } from "@/lib/passkey/bytea";
 
 function jsonError(status: number, message: string) {
   return NextResponse.json({ error: message }, { status });
@@ -157,7 +158,7 @@ export async function GET(
       signing_payload_hash: s.signing_payload_hash ?? null,
       signature_hash: s.signature_hash ?? null,
       signature_bytes_base64: s.signature_bytes
-        ? Buffer.from(s.signature_bytes).toString("base64")
+        ? decodeByteaField(s.signature_bytes).toString("base64")
         : null,
       signer_key_fingerprint: s.signer_key_fingerprint ?? null,
       signer_key_version:
