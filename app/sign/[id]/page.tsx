@@ -151,7 +151,7 @@ export default async function SignPage({
     })) ?? [];
 
   const passkeyRequired =
-    process.env.NEXT_PUBLIC_AGREEMENT_PASSKEY_REQUIRED !== "false";
+    process.env.NEXT_PUBLIC_AGREEMENT_PASSKEY_REQUIRED === "true";
 
   type AnchorRow = {
     chain_name: string;

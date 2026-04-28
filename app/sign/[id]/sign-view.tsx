@@ -158,23 +158,19 @@ export function SignView({
 
     if (passkeyRequired) {
       const begin = await beginPasskeySignForAgreement(agreementId);
-      if (!begin || ("error" in begin && begin.error)) {
-        setSigning(false);
-        setError(
-          begin && "error" in begin ? begin.error : "Passkey sign could not start."
-        );
-        return;
-      }
-      const opts = begin as { options: any; challengeId: string };
-      try {
-        const assertion = await startAuthentication(opts.options);
-        passkeyPayload = { challengeId: opts.challengeId, assertion };
-      } catch (e) {
-        setSigning(false);
-        setError(
-          e instanceof Error ? e.message : "Passkey authentication was cancelled."
-        );
-        return;
+      // If no passkey is registered, fall back to account keypair signing.
+      if (begin && !("error" in begin && begin.error)) {
+        const opts = begin as { options: any; challengeId: string };
+        try {
+          const assertion = await startAuthentication(opts.options);
+          passkeyPayload = { challengeId: opts.challengeId, assertion };
+        } catch (e) {
+          setSigning(false);
+          setError(
+            e instanceof Error ? e.message : "Passkey authentication was cancelled."
+          );
+          return;
+        }
       }
     }
 

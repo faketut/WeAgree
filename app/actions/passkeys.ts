@@ -148,7 +148,7 @@ export async function beginPasskeySignForAgreement(agreementId: string) {
     .eq("status", "active");
 
   if (cErr || !creds?.length) {
-    return { error: "No passkey registered. Add one in Settings." };
+    return { error: "No passkey registered for this account." };
   }
 
   const { data: agreement, error: aErr } = await supabase

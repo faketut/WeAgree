@@ -5,6 +5,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { canonicalize } from "@/lib/signing/json-canonical";
 import { kmsEncryptAgreementContent, kmsSign } from "@/lib/signing/kms-client";
+import {
+  decryptPrivateKeyPem,
+  encryptPrivateKeyPem,
+  generateEd25519KeypairPem,
+  signWithEd25519Pem,
+} from "@/lib/signing/user-keypair";
 import { countSignatureSlots } from "@/lib/signaturePlaceholders";
 import crypto from "node:crypto";
 import {
@@ -82,6 +88,44 @@ async function countSignaturesOnVersion(
     .select("id", { count: "exact", head: true })
     .eq("agreement_version_id", versionId);
   return typeof count === "number" ? count : 0;
+}
+
+async function ensureUserKeypair(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string
+): Promise<
+  | { ok: true; publicKeyPem: string; encryptedPrivateKey: string }
+  | { ok: false; error: string }
+> {
+  const { data: existing, error } = await supabase
+    .from("user_keypairs")
+    .select("public_key_pem, encrypted_private_key")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) return { ok: false, error: error.message };
+  if (existing?.public_key_pem && existing?.encrypted_private_key) {
+    return {
+      ok: true,
+      publicKeyPem: existing.public_key_pem as string,
+      encryptedPrivateKey: existing.encrypted_private_key as string,
+    };
+  }
+
+  try {
+    const kp = generateEd25519KeypairPem();
+    const enc = encryptPrivateKeyPem(kp.privateKeyPem);
+    const { error: insErr } = await supabase.from("user_keypairs").insert({
+      user_id: userId,
+      algorithm: "ed25519",
+      public_key_pem: kp.publicKeyPem,
+      encrypted_private_key: enc,
+      key_version: 1,
+    });
+    if (insErr) return { ok: false, error: insErr.message };
+    return { ok: true, publicKeyPem: kp.publicKeyPem, encryptedPrivateKey: enc };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Keypair init failed" };
+  }
 }
 
 export async function createAgreement(formData: FormData) {
@@ -588,6 +632,9 @@ export async function signAgreement(
   if (!user) return { error: "Not authenticated" };
 
   await ensureProfile(supabase, user);
+  // Ensure every account has a signing keypair (custodial; encrypted at rest).
+  const kp = await ensureUserKeypair(supabase, user.id);
+  if (!kp.ok) return { error: kp.error };
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -681,9 +728,16 @@ export async function signAgreement(
     );
     kmsKeyId = "passkey";
   } else {
-    const { signature, keyId } = await kmsSign(dataBytes);
-    signatureBytes = signature;
-    kmsKeyId = keyId;
+    try {
+      const privPem = decryptPrivateKeyPem(kp.encryptedPrivateKey);
+      signatureBytes = signWithEd25519Pem(privPem, dataBytes);
+      kmsKeyId = "user-ed25519";
+    } catch {
+      // Fallback to global KMS signer if user-key signing is unavailable.
+      const { signature, keyId } = await kmsSign(dataBytes);
+      signatureBytes = signature;
+      kmsKeyId = keyId;
+    }
   }
 
   const { data: existingSig } = await supabase
