@@ -822,48 +822,58 @@ export async function signAgreement(
       const finalProofHash = computeFinalProofHash(proofPayload);
       const signerListHash = computeSignerListHash(signers);
 
-      const chain = await submitFinalProofHash(finalProofHash);
+      let chain: { chainName: string; transactionHash: string; blockNumber: number | null; anchoredAt: string } | null =
+        null;
+      let anchorError: string | null = null;
+      try {
+        chain = await submitFinalProofHash(finalProofHash);
+      } catch (e) {
+        anchorError = e instanceof Error ? e.message : "Anchor failed";
+      }
 
       try {
         const admin = createAdminClient();
-        const anchorRow = {
+        const baseRow = {
           agreement_id: agreementId,
           agreement_version_id: versionId,
-          chain_name: chain.chainName,
+          chain_name:
+            chain?.chainName ?? process.env.BLOCKCHAIN_CHAIN_NAME ?? "unknown",
           final_proof_hash: finalProofHash,
           content_hash: proofPayload.content_hash,
           signer_list_hash: signerListHash,
-          transaction_hash: chain.transactionHash,
-          block_number: chain.blockNumber,
-          anchor_status: "confirmed",
-          anchored_at: chain.anchoredAt,
+          transaction_hash: chain?.transactionHash ?? null,
+          block_number: chain?.blockNumber ?? null,
+          anchor_status: chain ? "confirmed" : "failed",
+          anchored_at: chain?.anchoredAt ?? null,
           submission_payload: proofPayload as unknown as Record<string, unknown>,
-          receipt_payload: chain as unknown as Record<string, unknown>,
+          receipt_payload: chain
+            ? (chain as unknown as Record<string, unknown>)
+            : ({ error: anchorError } as unknown as Record<string, unknown>),
           updated_at: new Date().toISOString(),
         };
         const { error: insA } = await admin
           .from("agreement_version_anchors")
-          .insert(anchorRow);
+          .insert(baseRow);
         if (insA?.code === "23505") {
           await admin
             .from("agreement_version_anchors")
             .update({
-              chain_name: anchorRow.chain_name,
-              final_proof_hash: anchorRow.final_proof_hash,
-              content_hash: anchorRow.content_hash,
-              signer_list_hash: anchorRow.signer_list_hash,
-              transaction_hash: anchorRow.transaction_hash,
-              block_number: anchorRow.block_number,
-              anchor_status: anchorRow.anchor_status,
-              anchored_at: anchorRow.anchored_at,
-              submission_payload: anchorRow.submission_payload,
-              receipt_payload: anchorRow.receipt_payload,
-              updated_at: anchorRow.updated_at,
+              chain_name: baseRow.chain_name,
+              final_proof_hash: baseRow.final_proof_hash,
+              content_hash: baseRow.content_hash,
+              signer_list_hash: baseRow.signer_list_hash,
+              transaction_hash: baseRow.transaction_hash,
+              block_number: baseRow.block_number,
+              anchor_status: baseRow.anchor_status,
+              anchored_at: baseRow.anchored_at,
+              submission_payload: baseRow.submission_payload,
+              receipt_payload: baseRow.receipt_payload,
+              updated_at: baseRow.updated_at,
             })
             .eq("agreement_version_id", versionId);
         }
       } catch {
-        // Anchor persistence is best-effort if service role missing in local dev.
+        // Best-effort anchor persistence (requires service role)
       }
 
       const { data: creatorProfile } = await supabase
