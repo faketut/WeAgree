@@ -4,7 +4,7 @@ describe('signaturePlaceholders', () => {
     describe('countSignatureSlots', () => {
         it('returns 0 for empty or null content', () => {
             expect(countSignatureSlots('')).toBe(0);
-            expect(countSignatureSlots(null as any)).toBe(0);
+            expect(countSignatureSlots(null)).toBe(0);
         });
 
         it('counts single and multiple placeholders', () => {
