@@ -12,15 +12,10 @@ import { deleteAgreement } from "@/app/actions/agreements";
 import type { AgreementStatus } from "@/lib/types/database";
 import { kmsDecryptAgreementContent } from "@/lib/signing/kms-client";
 import { PDFDownloadButton } from "@/components/pdf-download-button";
+import { getBaseUrlFromHeaders } from "@/lib/utils/baseUrl";
 
 function getBaseUrl(): string {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "");
-  if (siteUrl) return siteUrl;
-  const h = headers();
-  const host = h.get("host") ?? "";
-  const proto = h.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
-  if (host) return `${proto}://${host}`;
-  return "http://localhost:3000";
+  return getBaseUrlFromHeaders(headers());
 }
 
 export default async function AgreementSharePage({

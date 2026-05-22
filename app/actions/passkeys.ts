@@ -13,6 +13,7 @@ import type {
 } from "@simplewebauthn/types";
 import { getWebAuthnExpectedOrigin, getWebAuthnRpId } from "@/lib/passkey/rp";
 import { decodeByteaField } from "@/lib/passkey/bytea";
+import { getDisplayName } from "@/lib/account/displayName";
 
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 
@@ -34,12 +35,7 @@ export async function beginPasskeyRegistration() {
     rpID: getWebAuthnRpId(),
     userID: user.id,
     userName: user.email ?? profile?.email ?? user.id,
-    userDisplayName:
-      profile?.full_name ??
-      (user.user_metadata?.full_name as string) ??
-      (user.user_metadata?.name as string) ??
-      user.email ??
-      "User",
+    userDisplayName: getDisplayName(user, profile),
     attestationType: "none",
     authenticatorSelection: {
       residentKey: "preferred",

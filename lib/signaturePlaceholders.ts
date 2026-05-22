@@ -1,12 +1,12 @@
 const SIGNATURE_PLACEHOLDER_REGEX = /\{\{\s*signature\s*\}\}/gi;
 
-export function countSignatureSlots(content: string): number {
+export function countSignatureSlots(content: string | null | undefined): number {
   if (!content) return 0;
   const matches = content.match(SIGNATURE_PLACEHOLDER_REGEX);
   return matches ? matches.length : 0;
 }
 
-export function buildSignatureSlotMap(content: string): {
+export function buildSignatureSlotMap(content: string | null | undefined): {
   index: number;
   start: number;
   end: number;

@@ -1,3 +1,5 @@
+import { getEnvBaseUrl } from "@/lib/utils/baseUrl";
+
 /**
  * WebAuthn RP configuration (server + client must match).
  */
@@ -17,8 +19,8 @@ export function getWebAuthnRpId(): string {
 }
 
 export function getWebAuthnExpectedOrigin(): string {
-  const site = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (site) return site.replace(/\/+$/, "");
+  const env = getEnvBaseUrl();
+  if (env) return env;
   return "http://localhost:3000";
 }
 

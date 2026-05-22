@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import type { CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { getBaseUrlFromHeaders } from "@/lib/utils/baseUrl";
 
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
@@ -47,15 +48,7 @@ export async function middleware(request: NextRequest) {
     if (request.nextUrl.pathname === "/login" && user) {
       const path = request.nextUrl.searchParams.get("redirectTo") || "/dashboard";
       const pathOnly = path.startsWith("/") ? path : `/${path}`;
-      const envUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/+$/, "");
-      const proto = request.headers.get("x-forwarded-proto");
-      const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
-      const origin =
-        envUrl && !envUrl.includes("localhost")
-          ? envUrl
-          : proto && host
-            ? `${proto}://${host}`.replace(/\/+$/, "")
-            : new URL(request.url).origin;
+      const origin = getBaseUrlFromHeaders(request.headers, new URL(request.url).origin);
       const redirectResponse = NextResponse.redirect(`${origin}${pathOnly}`);
       response.cookies.getAll().forEach((c) => redirectResponse.cookies.set(c.name, c.value));
       return redirectResponse;

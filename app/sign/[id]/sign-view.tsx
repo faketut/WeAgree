@@ -35,15 +35,7 @@ import { buildSignatureSlotMap } from "@/lib/signaturePlaceholders";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SignaturePad } from "@/components/signature-pad";
 import { SignatureUpload } from "@/components/signature-upload";
-
-function sha256Hex(content: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(content);
-  return crypto.subtle.digest("SHA-256", data).then((hashBuffer) => {
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-  });
-}
+import { sha256HexBrowser } from "@/lib/utils/sha256Browser";
 
 type VerifyState = "idle" | "ok" | "tampered";
 
@@ -113,7 +105,7 @@ export function SignView({
 
   useEffect(() => {
     async function verify() {
-      const localHash = await sha256Hex(content);
+      const localHash = await sha256HexBrowser(content);
       setVerifyState(localHash === contentHash ? "ok" : "tampered");
     }
     verify();

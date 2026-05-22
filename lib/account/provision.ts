@@ -3,16 +3,13 @@ import {
   encryptPrivateKeyPem,
   generateEd25519KeypairPem,
 } from "@/lib/signing/user-keypair";
+import { getDisplayName } from "@/lib/account/displayName";
 
 export async function ensureProfile(
   supabase: Awaited<ReturnType<typeof createClient>>,
   user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> }
 ) {
-  const fullName =
-    (user.user_metadata?.full_name as string) ||
-    (user.user_metadata?.name as string) ||
-    user.email?.split("@")[0] ||
-    "User";
+  const fullName = getDisplayName(user);
   return supabase.from("profiles").upsert(
     {
       id: user.id,

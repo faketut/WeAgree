@@ -24,15 +24,9 @@ import {
   type FinalProofSignerEntry,
 } from "@/lib/anchoring/final-proof";
 import { submitFinalProofHash } from "@/lib/anchoring/chain";
-
-function sha256Hex(content: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(content);
-  return crypto.subtle.digest("SHA-256", data).then((hashBuffer) => {
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-  });
-}
+import { getBaseUrl } from "@/lib/utils/baseUrl";
+import { getDisplayName } from "@/lib/account/displayName";
+import { sha256Hex } from "@/lib/utils/sha256";
 
 function contentHashForFingerprint(publicKeyPem: string): Buffer {
   return Buffer.from(publicKeyPem, "utf8");
@@ -68,10 +62,6 @@ async function countSignaturesOnVersion(
     .select("id", { count: "exact", head: true })
     .eq("agreement_version_id", versionId);
   return typeof count === "number" ? count : 0;
-}
-
-function sha256HexBuf(buf: Buffer): string {
-  return crypto.createHash("sha256").update(buf).digest("hex");
 }
 
 export async function createAgreement(formData: FormData) {
@@ -267,19 +257,13 @@ export async function publishAgreement(agreementId: string, inviteEmail?: string
 
   if (updateError) return { error: updateError.message };
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const baseUrl = getBaseUrl();
 
   if (inviteEmail) {
-    const creatorName =
-      (user.user_metadata?.full_name as string) ||
-      (user.user_metadata?.name as string) ||
-      user.email?.split("@")[0] ||
-      "User";
-
     await sendSignatureRequestEmail({
       to: inviteEmail,
       agreementTitle: row.title as string,
-      creatorName,
+      creatorName: getDisplayName(user),
       actionUrl: `${baseUrl}/sign/${agreementId}`,
     });
   }
@@ -305,18 +289,12 @@ export async function sendSignatureRequest(agreementId: string, email: string) {
 
   if (error || !agreement) return { error: "Agreement not found" };
 
-  const creatorName =
-    (user.user_metadata?.full_name as string) ||
-    (user.user_metadata?.name as string) ||
-    user.email?.split("@")[0] ||
-    "User";
-
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const baseUrl = getBaseUrl();
 
   const result = await sendSignatureRequestEmail({
     to: email,
     agreementTitle: agreement.title,
-    creatorName,
+    creatorName: getDisplayName(user),
     actionUrl: `${baseUrl}/sign/${agreementId}`,
   });
 
@@ -568,10 +546,7 @@ export async function signAgreement(
     .select("full_name")
     .eq("id", user.id)
     .single();
-  const signerName =
-    (profile?.full_name as string) ||
-    (user.user_metadata?.full_name as string) ||
-    (user.email ?? "Signer");
+  const signerName = getDisplayName(user, profile);
 
   const { data: agreementRow } = await supabase
     .from("agreements")
@@ -644,8 +619,8 @@ export async function signAgreement(
 
   const canonicalJson = canonicalize(signingPayload);
   const dataBytes = Buffer.from(canonicalJson, "utf8");
-  const signingPayloadHash = sha256HexBuf(dataBytes);
-  const signerKeyFingerprint = sha256HexBuf(
+  const signingPayloadHash = sha256Hex(dataBytes);
+  const signerKeyFingerprint = sha256Hex(
     contentHashForFingerprint(kp.publicKeyPem)
   );
 
@@ -668,7 +643,7 @@ export async function signAgreement(
     }
   }
   if (!signatureBytes) return { error: "Signature generation failed." };
-  const signatureHash = sha256HexBuf(signatureBytes);
+  const signatureHash = sha256Hex(signatureBytes);
 
   const { data: existingSig } = await supabase
     .from("signatures")
@@ -883,8 +858,7 @@ export async function signAgreement(
         .single();
 
       if (creatorProfile?.email) {
-        const baseUrl =
-          process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+        const baseUrl = getBaseUrl();
         await sendAgreementFinalizedEmail({
           to: creatorProfile.email,
           agreementTitle: agreementAfter.title as string,

@@ -1,28 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { ensureProfile, ensureUserKeypair } from "@/lib/account/provision";
+import { getBaseUrlFromHeaders } from "@/lib/utils/baseUrl";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
   const redirectTo = searchParams.get("redirectTo") ?? "/dashboard";
-  const envUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "");
-  const forwardedProto = request.headers.get("x-forwarded-proto");
-  const forwardedHost = request.headers.get("x-forwarded-host");
-  const host = request.headers.get("host");
-  const requestOrigin = new URL(request.url).origin;
-
-  let baseUrl: string;
-  if (envUrl && !envUrl.includes("localhost")) {
-    baseUrl = envUrl;
-  } else if (forwardedProto && forwardedHost) {
-    baseUrl = `${forwardedProto}://${forwardedHost}`.replace(/\/+$/, "");
-  } else if (host && !host.includes("localhost")) {
-    const proto = forwardedProto ?? "https";
-    baseUrl = `${proto}://${host}`.replace(/\/+$/, "");
-  } else {
-    baseUrl = requestOrigin;
-  }
+  const baseUrl = getBaseUrlFromHeaders(request.headers, new URL(request.url).origin);
 
   const path = redirectTo.startsWith("/") ? redirectTo : `/${redirectTo}`;
 
