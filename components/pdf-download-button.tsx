@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Download, Loader2 } from "lucide-react";
+import { Download, Loader2, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
@@ -14,6 +15,7 @@ interface PDFDownloadButtonProps {
 
 export function PDFDownloadButton({ contentId, filename, title }: PDFDownloadButtonProps) {
     const [isGenerating, setIsGenerating] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const downloadPDF = async () => {
         setIsGenerating(true);
@@ -48,26 +50,34 @@ export function PDFDownloadButton({ contentId, filename, title }: PDFDownloadBut
             pdf.save(`${filename}.pdf`);
         } catch (error) {
             console.error("PDF generation failed:", error);
-            alert("Failed to generate PDF. Please try again.");
+            setError("Failed to generate PDF. Please try again.");
         } finally {
             setIsGenerating(false);
         }
     };
 
     return (
-        <Button
-            variant="outline"
-            size="sm"
-            onClick={downloadPDF}
-            disabled={isGenerating}
-            className="gap-2"
-        >
-            {isGenerating ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-                <Download className="h-4 w-4" />
+        <div className="flex flex-col gap-2">
+            {error && (
+                <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                </Alert>
             )}
-            Download PDF
-        </Button>
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={downloadPDF}
+                disabled={isGenerating}
+                className="gap-2"
+            >
+                {isGenerating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                    <Download className="h-4 w-4" />
+                )}
+                Download PDF
+            </Button>
+        </div>
     );
 }
