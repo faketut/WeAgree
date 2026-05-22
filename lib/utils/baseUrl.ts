@@ -1,4 +1,4 @@
-const LOCAL_DEFAULT = "http://localhost:3000";
+export const LOCAL_DEFAULT_BASE_URL = "http://localhost:3000";
 
 function stripTrailing(s: string): string {
   return s.replace(/\/+$/, "");
@@ -15,7 +15,7 @@ export function getEnvBaseUrl(): string {
  *   2. x-forwarded-proto + x-forwarded-host
  *   3. host header (assumed https unless localhost)
  *   4. requestOrigin (e.g. new URL(req.url).origin)
- *   5. LOCAL_DEFAULT (http://localhost:3000)
+ *   5. LOCAL_DEFAULT_BASE_URL (http://localhost:3000)
  */
 export function getBaseUrlFromHeaders(h: Headers, requestOrigin?: string): string {
   const env = getEnvBaseUrl();
@@ -31,10 +31,10 @@ export function getBaseUrlFromHeaders(h: Headers, requestOrigin?: string): strin
   }
 
   if (requestOrigin) return stripTrailing(requestOrigin);
-  return env || LOCAL_DEFAULT;
+  return env || LOCAL_DEFAULT_BASE_URL;
 }
 
 /** Best-effort base URL for server actions (no request context). */
 export function getBaseUrl(): string {
-  return getEnvBaseUrl() || LOCAL_DEFAULT;
+  return getEnvBaseUrl() || LOCAL_DEFAULT_BASE_URL;
 }

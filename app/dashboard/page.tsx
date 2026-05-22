@@ -2,7 +2,6 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -31,6 +30,7 @@ import type { AgreementStatus, Agreement, Template } from "@/lib/types/database"
 import { deleteAgreement, publishAgreement } from "@/app/actions/agreements";
 import { deleteTemplate } from "@/app/actions/templates";
 import { PublishDraftDialog } from "./publish-draft-dialog";
+import { StatusBadge } from "@/components/status-badge";
 
 export const dynamic = "force-dynamic";
 
@@ -52,49 +52,6 @@ type DashboardTemplateRow = {
 type SearchParams = Record<string, string | string[] | undefined>;
 
 const PAGE_SIZE = 10;
-
-const STATUS_CONFIG: Record<
-  AgreementStatus,
-  {
-    label: string;
-    icon: typeof FileText;
-    variant: "secondary" | "destructive" | "default" | "outline";
-    className?: string;
-  }
-> = {
-  draft: {
-    label: "Draft",
-    icon: FileText,
-    variant: "secondary",
-    className:
-      "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800/40 dark:text-slate-300 dark:border-slate-700",
-  },
-  pending: {
-    label: "Pending",
-    icon: Clock,
-    variant: "outline",
-    className:
-      "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800",
-  },
-  signed: {
-    label: "Signed",
-    icon: CheckCircle,
-    variant: "default",
-    className:
-      "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800",
-  },
-  voided: { label: "Voided", icon: FileText, variant: "destructive" },
-};
-
-function StatusBadge({ status }: { status: AgreementStatus }) {
-  const { label, icon: Icon, variant, className } = STATUS_CONFIG[status];
-  return (
-    <Badge variant={variant} className={className}>
-      <Icon className="mr-1 h-3 w-3" />
-      {label}
-    </Badge>
-  );
-}
 
 function parsePage(value: string | string[] | undefined): number {
   const raw = Array.isArray(value) ? value[0] : value;

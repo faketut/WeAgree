@@ -64,7 +64,9 @@ async function countSignaturesOnVersion(
   return typeof count === "number" ? count : 0;
 }
 
-export async function createAgreement(formData: FormData) {
+type CreateMode = "publish" | "draft";
+
+async function createAgreementInternal(formData: FormData, mode: CreateMode) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -87,6 +89,8 @@ export async function createAgreement(formData: FormData) {
   }
 
   const contentHash = await sha256Hex(content);
+  const agreementStatus: AgreementStatus = mode === "publish" ? "pending" : "draft";
+  const versionStatus = mode === "publish" ? "open_for_signing" : "draft";
 
   const { data: root, error: rootErr } = await supabase
     .from("agreements")
@@ -95,7 +99,7 @@ export async function createAgreement(formData: FormData) {
       title,
       content,
       content_hash: contentHash,
-      status: "pending" as AgreementStatus,
+      status: agreementStatus,
       required_signatures: slotCount,
     })
     .select("id")
@@ -111,9 +115,9 @@ export async function createAgreement(formData: FormData) {
       title,
       content,
       content_hash: contentHash,
-      status: "open_for_signing",
+      status: versionStatus,
       required_signatures: slotCount,
-      published_at: new Date().toISOString(),
+      ...(mode === "publish" ? { published_at: new Date().toISOString() } : {}),
     })
     .select("id")
     .single();
@@ -132,71 +136,12 @@ export async function createAgreement(formData: FormData) {
   return { success: true, id: root.id };
 }
 
+export async function createAgreement(formData: FormData) {
+  return createAgreementInternal(formData, "publish");
+}
+
 export async function createDraftAgreement(formData: FormData) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
-
-  await ensureProfile(supabase, user);
-
-  const title = (formData.get("title") as string)?.trim();
-  const content = (formData.get("content") as string)?.trim();
-  if (!title) return { error: "Title is required" };
-  if (!content) return { error: "Content is required" };
-
-  const slotCount = countSignatureSlots(content);
-  if (slotCount <= 0) {
-    return {
-      error:
-        "Content must include at least one {{signature}} placeholder to indicate where signers should sign.",
-    };
-  }
-
-  const contentHash = await sha256Hex(content);
-
-  const { data: root, error: rootErr } = await supabase
-    .from("agreements")
-    .insert({
-      creator_id: user.id,
-      title,
-      content,
-      content_hash: contentHash,
-      status: "draft" as AgreementStatus,
-      required_signatures: slotCount,
-    })
-    .select("id")
-    .single();
-
-  if (rootErr || !root) return { error: rootErr?.message ?? "Insert failed" };
-
-  const { data: ver, error: verErr } = await supabase
-    .from("agreement_versions")
-    .insert({
-      agreement_id: root.id,
-      version_number: 1,
-      title,
-      content,
-      content_hash: contentHash,
-      status: "draft",
-      required_signatures: slotCount,
-    })
-    .select("id")
-    .single();
-
-  if (verErr || !ver) {
-    await supabase.from("agreements").delete().eq("id", root.id);
-    return { error: verErr?.message ?? "Version insert failed" };
-  }
-
-  await supabase
-    .from("agreements")
-    .update({ current_version_id: ver.id })
-    .eq("id", root.id);
-
-  revalidatePath("/dashboard");
-  return { success: true, id: root.id };
+  return createAgreementInternal(formData, "draft");
 }
 
 export async function publishAgreement(agreementId: string, inviteEmail?: string) {

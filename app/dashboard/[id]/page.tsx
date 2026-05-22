@@ -3,16 +3,16 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SharePanel } from "./share-panel";
-import { ArrowLeft, FileText, Clock, CheckCircle, Trash2, Pencil, KeyRound, Download } from "lucide-react";
+import { ArrowLeft, Trash2, Pencil, KeyRound, Download } from "lucide-react";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { deleteAgreement } from "@/app/actions/agreements";
 import type { AgreementStatus } from "@/lib/types/database";
 import { kmsDecryptAgreementContent } from "@/lib/signing/kms-client";
 import { PDFDownloadButton } from "@/components/pdf-download-button";
 import { getBaseUrlFromHeaders } from "@/lib/utils/baseUrl";
+import { StatusBadge } from "@/components/status-badge";
 
 function getBaseUrl(): string {
   return getBaseUrlFromHeaders(headers());
@@ -71,42 +71,6 @@ export default async function AgreementSharePage({
 
   const baseUrl = getBaseUrl();
   const signUrl = `${baseUrl}/sign/${agreement.id}`;
-
-  const STATUS_BADGE: Record<
-    AgreementStatus,
-    {
-      label: string;
-      icon: typeof FileText;
-      variant: "secondary" | "destructive" | "default" | "outline";
-      className?: string;
-    }
-  > = {
-    draft: {
-      label: "Draft",
-      icon: FileText,
-      variant: "secondary",
-    },
-    pending: {
-      label: "Pending",
-      icon: Clock,
-      variant: "outline",
-      className:
-        "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800",
-    },
-    signed: {
-      label: "Signed",
-      icon: CheckCircle,
-      variant: "default",
-      className:
-        "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800",
-    },
-    voided: {
-      label: "Voided",
-      icon: FileText,
-      variant: "destructive",
-    },
-  };
-  const statusConf = STATUS_BADGE[agreement.status as AgreementStatus];
 
   let signatures: {
     signer_id: string;
@@ -189,15 +153,7 @@ export default async function AgreementSharePage({
                   title={agreement.title}
                 />
               </div>
-              {statusConf && (() => {
-                const Icon = statusConf.icon;
-                return (
-                  <Badge variant={statusConf.variant} className={statusConf.className}>
-                    <Icon className="mr-1 h-3 w-3" />
-                    {statusConf.label}
-                  </Badge>
-                );
-              })()}
+              <StatusBadge status={agreement.status as AgreementStatus} />
             </div>
             <CardDescription>
               Created {new Date(agreement.created_at).toLocaleString()}
