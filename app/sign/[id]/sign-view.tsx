@@ -325,6 +325,7 @@ export function SignView({
                     <li key={i} className="border-b border-border/50 pb-2 last:border-0 last:pb-0">
                       <div className="flex flex-col gap-1">
                         {s.signature_display?.startsWith("data:image/") ? (
+                          // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={s.signature_display}
                             alt={`Signature by ${s.signer_name}`}
@@ -387,6 +388,7 @@ export function SignView({
                   <Label>Signature</Label>
                   {signatureDataUri ? (
                     <div className="relative rounded-md border bg-white dark:bg-slate-950 p-6 flex flex-col items-center justify-center">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={signatureDataUri}
                         alt="Applied signature"
@@ -411,7 +413,7 @@ export function SignView({
                     <Tabs
                       defaultValue="type"
                       onValueChange={(v) =>
-                        setSignatureStyle(v as any)
+                        setSignatureStyle(v as typeof signatureStyle)
                       }
                       className="w-full"
                     >

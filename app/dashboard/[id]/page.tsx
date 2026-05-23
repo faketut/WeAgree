@@ -212,6 +212,7 @@ export default async function AgreementSharePage({
                     >
                       <div className="flex flex-col gap-1">
                         {s.signature_display?.startsWith("data:image/") ? (
+                          // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={s.signature_display}
                             alt={`Signature by ${s.signer_name}`}

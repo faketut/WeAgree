@@ -648,7 +648,9 @@ export async function signAgreement(
     slot_index: normalizedSlotIndex,
     webauthn_credential_id: webauthnCredentialId,
     passkey_verified: passkeyVerified,
-    passkey_assertion: passkeyVerified ? (passkey!.assertion as any) : null,
+    passkey_assertion: passkeyVerified
+      ? (passkey!.assertion as unknown as Record<string, unknown>)
+      : null,
     ...(annotation != null &&
       annotation.trim() !== "" && { annotation: annotation.trim() }),
   });
@@ -724,7 +726,7 @@ export async function signAgreement(
         signature_hash: (s.signature_hash as string) ?? null,
         key_fingerprint: (s.signer_key_fingerprint as string) ?? null,
         key_version:
-          typeof (s.signer_key_version as any) === "number"
+          typeof s.signer_key_version === "number"
             ? (s.signer_key_version as number)
             : null,
         passkey_credential_id: (s.webauthn_credential_id as string) ?? null,

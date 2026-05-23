@@ -2,6 +2,7 @@
   "name": "agreement-platform",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "npm@10.0.0",
   "engines": {
     "node": ">=18.17.0"
   },
@@ -11,6 +12,8 @@
     "start": "next start",
     "production": "next build && next start",
     "lint": "next lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:e2e": "playwright test",

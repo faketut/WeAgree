@@ -29,7 +29,7 @@ export async function POST(req: Request) {
 
   const hash =
     body && typeof body === "object" && "hash" in body
-      ? (body as any).hash
+      ? (body as { hash: unknown }).hash
       : null;
   if (typeof hash !== "string") return jsonError(400, "Missing hash");
 
