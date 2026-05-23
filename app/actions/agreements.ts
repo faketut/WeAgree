@@ -28,6 +28,7 @@ import { getBaseUrl } from "@/lib/utils/baseUrl";
 import { getDisplayName } from "@/lib/account/displayName";
 import { sha256Hex } from "@/lib/utils/sha256";
 import { validateSignatureDisplay } from "@/lib/signing/signature-validation";
+import { log, errCtx } from "@/lib/log";
 
 function contentHashForFingerprint(publicKeyPem: string): Buffer {
   return Buffer.from(publicKeyPem, "utf8");
@@ -586,8 +587,9 @@ export async function signAgreement(
       const privPem = decryptPrivateKeyPem(kp.encryptedPrivateKey);
       signatureBytes = signWithEd25519Pem(privPem, dataBytes);
       kmsKeyId = "user-ed25519";
-    } catch {
+    } catch (e) {
       // Fallback to global KMS signer if user-key signing is unavailable.
+      log.warn("user-key signing failed; falling back to KMS signer", errCtx(e));
       const { signature, keyId } = await kmsSign(dataBytes);
       signatureBytes = signature;
       kmsKeyId = keyId;
@@ -798,8 +800,9 @@ export async function signAgreement(
             })
             .eq("agreement_version_id", versionId);
         }
-      } catch {
+      } catch (e) {
         // Best-effort anchor persistence (requires service role)
+        log.warn("anchor persistence failed", errCtx(e));
       }
 
       const { data: creatorProfile } = await supabase
@@ -817,8 +820,9 @@ export async function signAgreement(
         });
       }
     }
-  } catch {
+  } catch (e) {
     // Best-effort finalize side effects
+    log.warn("finalize side effects failed", errCtx(e));
   }
 
   revalidatePath("/dashboard");
