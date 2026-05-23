@@ -2,14 +2,13 @@ import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { ensureProfile, ensureUserKeypair } from "@/lib/account/provision";
 import { getBaseUrlFromHeaders } from "@/lib/utils/baseUrl";
+import { safeRelativePath } from "@/lib/utils/safeRedirect";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
-  const redirectTo = searchParams.get("redirectTo") ?? "/dashboard";
   const baseUrl = getBaseUrlFromHeaders(request.headers, new URL(request.url).origin);
-
-  const path = redirectTo.startsWith("/") ? redirectTo : `/${redirectTo}`;
+  const path = safeRelativePath(searchParams.get("redirectTo"));
 
   if (code) {
     const supabase = await createClient();

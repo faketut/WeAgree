@@ -177,3 +177,33 @@ Useful scripts:
 - `npm run test:e2e`
 - `npm run verify:proof -- <proof.json>`
 
+
+## Production checklist
+
+WeAgree ships with a local-development KMS shim (`lib/signing/kms-client.ts`)
+that generates an ephemeral in-process keypair when no key is configured. This
+is **not safe** for production deployments. Before going live, set:
+
+| Variable                      | Purpose                                                                                |
+| ----------------------------- | -------------------------------------------------------------------------------------- |
+| `SIGNING_PRIVATE_KEY_PEM`     | PEM-encoded RSA key used by the local KMS shim. Required in production (the server throws on boot otherwise). |
+| `SIGNING_KEY_ID`              | Stable identifier emitted with every signed proof.                                     |
+| `USER_KEY_ENCRYPTION_KEY`     | 32-byte base64 secret used for AES-256-GCM encryption-at-rest of user signing keys.    |
+| `SUPABASE_SECRET_KEY`         | Service role key (RLS-bypass). Restrict to backend hosts only.                         |
+| `RESEND_API_KEY`              | Outbound email; rotate periodically.                                                   |
+| `ANCHOR_RPC_URL`, `ANCHOR_PRIVATE_KEY`, `ANCHOR_CONTRACT_ADDRESS` | On-chain anchoring.                                            |
+| `NEXT_PUBLIC_SITE_URL`        | Canonical origin; used in emails and OAuth callbacks.                                  |
+| `WEBAUTHN_RP_ID`              | Hostname (no scheme) of the deployed app for passkey RP binding.                       |
+
+### Threat model & key handling
+
+- `USER_KEY_ENCRYPTION_KEY` is a custodial root key — its compromise discloses
+  every user's signing key. Rotate by re-encrypting all `user_keypairs.encrypted_private_key`
+  rows. Plan to swap `lib/signing/kms-client.ts` for a hosted KMS / TEE before
+  scaling beyond pilot users.
+- Final proof hashes are anchored on-chain; any change to `lib/signing/json-canonical.ts`
+  output format would invalidate previously anchored proofs. Treat that file as
+  append-only and add a new version function for breaking changes.
+- Production deployments **must** override the security headers in
+  `next.config.mjs` only to *tighten* them (e.g. swap `'unsafe-inline'` for a
+  nonce strategy once the framework supports it stably).

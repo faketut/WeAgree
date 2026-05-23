@@ -5,6 +5,7 @@ import {
   beginPasskeyRegistration,
   completePasskeyRegistration,
   listPasskeys,
+  revokePasskey,
 } from "@/app/actions/passkeys";
 import { startRegistration } from "@simplewebauthn/browser";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,21 @@ export function PasskeySettingsClient() {
     const res = await listPasskeys();
     setListing(false);
     setCredentials([...(res.credentials ?? [])]);
+  }
+
+  async function handleRevoke(id: string) {
+    if (typeof window !== "undefined" && !window.confirm("Revoke this passkey? It can no longer be used for signing.")) {
+      return;
+    }
+    setError(null);
+    setSuccess(null);
+    const res = await revokePasskey(id);
+    if ("error" in res) {
+      setError(res.error);
+    } else {
+      setSuccess("Passkey revoked.");
+      await refresh();
+    }
   }
 
   useEffect(() => {
@@ -89,15 +105,26 @@ export function PasskeySettingsClient() {
         ) : credentials.length > 0 ? (
           <ul className="space-y-2 text-sm">
             {credentials.map((c) => (
-              <li key={c.id} className="rounded border p-3">
-                <span className="font-medium">{c.nickname ?? "Passkey"}</span>
-                <span className="ml-2 text-muted-foreground">({c.status})</span>
-                <div className="text-xs text-muted-foreground mt-1">
-                  Added {new Date(c.created_at).toLocaleString()}
-                  {c.last_used_at && (
-                    <> · Last used {new Date(c.last_used_at).toLocaleString()}</>
-                  )}
+              <li key={c.id} className="rounded border p-3 flex items-start justify-between gap-3">
+                <div>
+                  <span className="font-medium">{c.nickname ?? "Passkey"}</span>
+                  <span className="ml-2 text-muted-foreground">({c.status})</span>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Added {new Date(c.created_at).toLocaleString()}
+                    {c.last_used_at && (
+                      <> · Last used {new Date(c.last_used_at).toLocaleString()}</>
+                    )}
+                  </div>
                 </div>
+                {c.status === "active" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void handleRevoke(c.id)}
+                  >
+                    Revoke
+                  </Button>
+                )}
               </li>
             ))}
           </ul>

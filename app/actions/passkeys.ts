@@ -318,3 +318,23 @@ export async function listPasskeys() {
   if (error) return { error: error.message, credentials: [] as CredentialRow[] };
   return { credentials: (data ?? []) as CredentialRow[] };
 }
+
+export async function revokePasskey(
+  credentialId: string
+): Promise<{ ok: true } | { error: string }> {
+  if (!credentialId) return { error: "Missing credential id" };
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { error } = await supabase
+    .from("user_signing_credentials")
+    .update({ status: "revoked", revoked_at: new Date().toISOString() })
+    .eq("id", credentialId)
+    .eq("user_id", user.id);
+
+  if (error) return { error: error.message };
+  return { ok: true };
+}

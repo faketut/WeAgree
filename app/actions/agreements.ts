@@ -27,6 +27,7 @@ import { submitFinalProofHash } from "@/lib/anchoring/chain";
 import { getBaseUrl } from "@/lib/utils/baseUrl";
 import { getDisplayName } from "@/lib/account/displayName";
 import { sha256Hex } from "@/lib/utils/sha256";
+import { validateSignatureDisplay } from "@/lib/signing/signature-validation";
 
 function contentHashForFingerprint(publicKeyPem: string): Buffer {
   return Buffer.from(publicKeyPem, "utf8");
@@ -480,6 +481,11 @@ export async function signAgreement(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
+
+  if (signatureDisplay) {
+    const v = validateSignatureDisplay(signatureDisplay);
+    if (!v.ok) return { error: v.error };
+  }
 
   await ensureProfile(supabase, user);
   // Ensure every account has a signing keypair (custodial; encrypted at rest).

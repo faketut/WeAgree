@@ -26,6 +26,16 @@ function getPrivateKey(): crypto.KeyObject {
     });
   }
 
+  if (process.env.NODE_ENV === "production") {
+    // eslint-disable-next-line no-console
+    console.error(
+      "[kms-client] SIGNING_PRIVATE_KEY_PEM is unset in production; refusing to use ephemeral dev key."
+    );
+    throw new Error(
+      "SIGNING_PRIVATE_KEY_PEM must be configured in production. See README › Production checklist."
+    );
+  }
+
   if (!devKeyPair) {
     devKeyPair = crypto.generateKeyPairSync("rsa", {
       modulusLength: 2048,

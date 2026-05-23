@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import type { CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getBaseUrlFromHeaders } from "@/lib/utils/baseUrl";
+import { safeRelativePath } from "@/lib/utils/safeRedirect";
 
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
@@ -41,13 +42,15 @@ export async function middleware(request: NextRequest) {
 
     if (isProtectedPath(request.nextUrl.pathname) && !user) {
       const redirect = new URL("/login", request.url);
-      redirect.searchParams.set("redirectTo", request.nextUrl.pathname);
+      redirect.searchParams.set(
+        "redirectTo",
+        safeRelativePath(request.nextUrl.pathname, request.nextUrl.pathname)
+      );
       return NextResponse.redirect(redirect);
     }
 
     if (request.nextUrl.pathname === "/login" && user) {
-      const path = request.nextUrl.searchParams.get("redirectTo") || "/dashboard";
-      const pathOnly = path.startsWith("/") ? path : `/${path}`;
+      const pathOnly = safeRelativePath(request.nextUrl.searchParams.get("redirectTo"));
       const origin = getBaseUrlFromHeaders(request.headers, new URL(request.url).origin);
       const redirectResponse = NextResponse.redirect(`${origin}${pathOnly}`);
       response.cookies.getAll().forEach((c) => redirectResponse.cookies.set(c.name, c.value));
