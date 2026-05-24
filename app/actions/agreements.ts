@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { rateLimit, rateLimitKey } from "@/lib/ratelimit";
 import { revalidatePath } from "next/cache";
 import { canonicalize } from "@/lib/signing/json-canonical";
 import { kmsEncryptAgreementContent, kmsSign } from "@/lib/signing/kms-client";
@@ -226,6 +227,9 @@ export async function sendSignatureRequest(agreementId: string, email: string) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
+
+  const rl = await rateLimit(rateLimitKey("email-req", user.id), 20, 3600);
+  if (!rl.allowed) return { error: "Too many invites; try again later." };
 
   const { data: agreement, error } = await supabase
     .from("agreements")
@@ -482,6 +486,9 @@ export async function signAgreement(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
+
+  const rl = await rateLimit(rateLimitKey("sign", user.id), 30, 60);
+  if (!rl.allowed) return { error: "Too many signing attempts; slow down." };
 
   if (signatureDisplay) {
     const v = validateSignatureDisplay(signatureDisplay);

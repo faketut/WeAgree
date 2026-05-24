@@ -12,6 +12,7 @@ const config: Config = {
     testEnvironment: 'jsdom',
     // Add more setup options before each test is run
     setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
+    testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/', '<rootDir>/e2e/'],
     moduleNameMapper: {
         // Handle module aliases (this will be automatically configured for you soon)
         '^@/(.*)$': '<rootDir>/$1',

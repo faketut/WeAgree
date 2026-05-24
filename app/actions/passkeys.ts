@@ -14,6 +14,7 @@ import type {
 import { getWebAuthnExpectedOrigin, getWebAuthnRpId } from "@/lib/passkey/rp";
 import { decodeByteaField } from "@/lib/passkey/bytea";
 import { getDisplayName } from "@/lib/account/displayName";
+import { rateLimit, rateLimitKey } from "@/lib/ratelimit";
 
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 
@@ -328,6 +329,9 @@ export async function revokePasskey(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
+
+  const rl = await rateLimit(rateLimitKey("revoke-pk", user.id), 10, 300);
+  if (!rl.allowed) return { error: "Too many revocation attempts; try again later." };
 
   const { error } = await supabase
     .from("user_signing_credentials")

@@ -1,40 +1,63 @@
 /**
- * Tiny logger wrapper. Lets us route diagnostics through one chokepoint so
- * empty `catch {}` blocks can be replaced with explicit "logged & swallowed"
- * calls without dragging in a heavy logging dependency.
+ * Tiny logger.
  *
- * In production you can swap the impls for pino/winston/etc. — call sites
- * never need to change.
+ * - Production: one JSON object per line on stdout (Vercel / Cloud Run ingest
+ *   this natively). No dep needed.
+ * - Development: human-readable single line.
+ *
+ * The shape is API-compatible with pino — swap to `pino()` later without
+ * touching call sites if/when richer features (child loggers, transports) are
+ * worth the dep.
  */
 type LogContext = Record<string, unknown>;
+type Level = "debug" | "info" | "warn" | "error";
 
-function fmt(ctx?: LogContext): string {
-    if (!ctx || Object.keys(ctx).length === 0) return "";
-    try {
-        return " " + JSON.stringify(ctx);
-    } catch {
-        return " [unserializable context]";
+const isProd = process.env.NODE_ENV === "production";
+
+function emit(level: Level, msg: string, ctx?: LogContext): void {
+    if (level === "debug" && isProd) return;
+
+    if (isProd) {
+        const record = { level, msg, time: new Date().toISOString(), ...ctx };
+        // eslint-disable-next-line no-console
+        const sink = level === "error" ? console.error : console.log;
+        try {
+            // eslint-disable-next-line no-console
+            sink(JSON.stringify(record));
+        } catch {
+            // eslint-disable-next-line no-console
+            sink(JSON.stringify({ level, msg, time: record.time, _unserializable_ctx: true }));
+        }
+        return;
     }
+
+    let suffix = "";
+    if (ctx && Object.keys(ctx).length > 0) {
+        try {
+            suffix = " " + JSON.stringify(ctx);
+        } catch {
+            suffix = " [unserializable context]";
+        }
+    }
+    const sink =
+        // eslint-disable-next-line no-console
+        level === "error" ? console.error : level === "warn" ? console.warn : console.info;
+    // eslint-disable-next-line no-console
+    sink(`[${level}] ${msg}${suffix}`);
 }
 
 export const log = {
     debug(msg: string, ctx?: LogContext): void {
-        if (process.env.NODE_ENV !== "production") {
-            // eslint-disable-next-line no-console
-            console.debug(`[debug] ${msg}${fmt(ctx)}`);
-        }
+        emit("debug", msg, ctx);
     },
     info(msg: string, ctx?: LogContext): void {
-        // eslint-disable-next-line no-console
-        console.info(`[info] ${msg}${fmt(ctx)}`);
+        emit("info", msg, ctx);
     },
     warn(msg: string, ctx?: LogContext): void {
-        // eslint-disable-next-line no-console
-        console.warn(`[warn] ${msg}${fmt(ctx)}`);
+        emit("warn", msg, ctx);
     },
     error(msg: string, ctx?: LogContext): void {
-        // eslint-disable-next-line no-console
-        console.error(`[error] ${msg}${fmt(ctx)}`);
+        emit("error", msg, ctx);
     },
 };
 
