@@ -13,8 +13,8 @@ export default function SignNotFound() {
           </div>
           <CardTitle className="text-xl">Signing link invalid</CardTitle>
           <CardDescription>
-            This link may be wrong, or the agreement may have been removed or already signed. Ask the
-            sender for a new link.
+            This link may be wrong, or the agreement may have been removed or already signed. Ask
+            the sender for a new link.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex justify-center">

@@ -28,9 +28,7 @@ export async function POST(req: Request) {
   }
 
   const hash =
-    body && typeof body === "object" && "hash" in body
-      ? (body as { hash: unknown }).hash
-      : null;
+    body && typeof body === "object" && "hash" in body ? (body as { hash: unknown }).hash : null;
   if (typeof hash !== "string") return jsonError(400, "Missing hash");
 
   const hex = hash.toLowerCase();
@@ -45,8 +43,7 @@ export async function POST(req: Request) {
 
   if (!rpcUrl) return jsonError(500, "Missing BLOCKCHAIN_EVM_RPC_URL");
   if (!pk) return jsonError(500, "Missing BLOCKCHAIN_EVM_PRIVATE_KEY");
-  if (!contractAddress)
-    return jsonError(500, "Missing BLOCKCHAIN_EVM_CONTRACT_ADDRESS");
+  if (!contractAddress) return jsonError(500, "Missing BLOCKCHAIN_EVM_CONTRACT_ADDRESS");
 
   try {
     const provider = new ethers.JsonRpcProvider(rpcUrl);
@@ -73,4 +70,3 @@ export async function POST(req: Request) {
     return jsonError(502, e instanceof Error ? e.message : "Anchor failed");
   }
 }
-

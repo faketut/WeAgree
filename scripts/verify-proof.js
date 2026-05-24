@@ -116,11 +116,7 @@ function main() {
       );
     }
 
-    const ok = verifyEd25519Signature(
-      s.signer_public_key_pem,
-      payloadBytes,
-      sigBytes
-    );
+    const ok = verifyEd25519Signature(s.signer_public_key_pem, payloadBytes, sigBytes);
     if (!ok) die(`Signature verification FAILED for signer ${s.signer_id}`);
   }
 
@@ -138,4 +134,3 @@ function main() {
 }
 
 main();
-

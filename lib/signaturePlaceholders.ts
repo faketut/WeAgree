@@ -26,4 +26,3 @@ export function buildSignatureSlotMap(content: string | null | undefined): {
   }
   return slots;
 }
-

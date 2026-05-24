@@ -1,6 +1,7 @@
 # WeAgree
 
 Secure agreement signing platform with:
+
 - GitHub OAuth login
 - account-level cryptographic keypairs (auto-provisioned)
 - optional passkey step-up authentication
@@ -65,6 +66,7 @@ sequenceDiagram
 ## Migrations
 
 This repo currently tracks these migration files:
+
 - `supabase/migrations/009_user_keypairs.sql`
 - `supabase/migrations/010_signature_proof_fields.sql`
 
@@ -98,20 +100,24 @@ If your environment bootstraps schema from `supabase/INIT_ALL.sql`, apply that f
 ## Environment Variables
 
 ### Supabase / App
+
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or `NEXT_PUBLIC_SUPABASE_ANON_KEY`)
 - `SUPABASE_SECRET_KEY` (or `SUPABASE_SERVICE_ROLE_KEY`)
 - `NEXT_PUBLIC_SITE_URL`
 
 ### Account Keypairs
+
 - `USER_KEY_ENCRYPTION_KEY` (required; base64-encoded 32 bytes)
 
 ### Passkeys (optional)
+
 - `WEBAUTHN_RP_ID` (optional; defaults from `NEXT_PUBLIC_SITE_URL` host)
 - `AGREEMENT_PASSKEY_REQUIRED` (`"true"` to enforce passkey step-up)
 - `NEXT_PUBLIC_AGREEMENT_PASSKEY_REQUIRED` (client-side UX toggle; should match server policy)
 
 ### Blockchain Anchoring
+
 - `BLOCKCHAIN_RPC_URL` (e.g. `https://we-agree.vercel.app/api/anchor`)
 - `BLOCKCHAIN_RPC_API_KEY` (optional bearer token protection)
 - `BLOCKCHAIN_CHAIN_NAME` (display/metadata)
@@ -122,25 +128,29 @@ If your environment bootstraps schema from `supabase/INIT_ALL.sql`, apply that f
 ## Anchor API (`/api/anchor`)
 
 Request:
+
 - `POST /api/anchor`
 - body: `{ "hash": "<64 hex sha256>" }`
 - optional header: `Authorization: Bearer <BLOCKCHAIN_RPC_API_KEY>`
 
 Response:
+
 - `{ chain_name, transaction_hash, block_number, anchored_at }`
 
 ## Proof Export and Offline Verification
 
-1) Download finalized proof:
+1. Download finalized proof:
+
 - `GET /api/agreements/<agreementId>/proof`
 
-2) Verify locally:
+2. Verify locally:
 
 ```bash
 npm run verify:proof -- ./weagree-proof-<agreementId>.json
 ```
 
 What verifier checks:
+
 - recomputes `final_proof_hash`
 - recomputes each `signing_payload_hash`
 - recomputes each `signature_hash`
@@ -172,11 +182,11 @@ npm run dev
 ```
 
 Useful scripts:
+
 - `npm run lint`
 - `npm test`
 - `npm run test:e2e`
 - `npm run verify:proof -- <proof.json>`
-
 
 ## Production checklist
 
@@ -184,16 +194,16 @@ WeAgree ships with a local-development KMS shim (`lib/signing/kms-client.ts`)
 that generates an ephemeral in-process keypair when no key is configured. This
 is **not safe** for production deployments. Before going live, set:
 
-| Variable                      | Purpose                                                                                |
-| ----------------------------- | -------------------------------------------------------------------------------------- |
-| `SIGNING_PRIVATE_KEY_PEM`     | PEM-encoded RSA key used by the local KMS shim. Required in production (the server throws on boot otherwise). |
-| `SIGNING_KEY_ID`              | Stable identifier emitted with every signed proof.                                     |
-| `USER_KEY_ENCRYPTION_KEY`     | 32-byte base64 secret used for AES-256-GCM encryption-at-rest of user signing keys.    |
-| `SUPABASE_SECRET_KEY`         | Service role key (RLS-bypass). Restrict to backend hosts only.                         |
-| `RESEND_API_KEY`              | Outbound email; rotate periodically.                                                   |
-| `ANCHOR_RPC_URL`, `ANCHOR_PRIVATE_KEY`, `ANCHOR_CONTRACT_ADDRESS` | On-chain anchoring.                                            |
-| `NEXT_PUBLIC_SITE_URL`        | Canonical origin; used in emails and OAuth callbacks.                                  |
-| `WEBAUTHN_RP_ID`              | Hostname (no scheme) of the deployed app for passkey RP binding.                       |
+| Variable                                                          | Purpose                                                                                                       |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `SIGNING_PRIVATE_KEY_PEM`                                         | PEM-encoded RSA key used by the local KMS shim. Required in production (the server throws on boot otherwise). |
+| `SIGNING_KEY_ID`                                                  | Stable identifier emitted with every signed proof.                                                            |
+| `USER_KEY_ENCRYPTION_KEY`                                         | 32-byte base64 secret used for AES-256-GCM encryption-at-rest of user signing keys.                           |
+| `SUPABASE_SECRET_KEY`                                             | Service role key (RLS-bypass). Restrict to backend hosts only.                                                |
+| `RESEND_API_KEY`                                                  | Outbound email; rotate periodically.                                                                          |
+| `ANCHOR_RPC_URL`, `ANCHOR_PRIVATE_KEY`, `ANCHOR_CONTRACT_ADDRESS` | On-chain anchoring.                                                                                           |
+| `NEXT_PUBLIC_SITE_URL`                                            | Canonical origin; used in emails and OAuth callbacks.                                                         |
+| `WEBAUTHN_RP_ID`                                                  | Hostname (no scheme) of the deployed app for passkey RP binding.                                              |
 
 ### Threat model & key handling
 
@@ -205,5 +215,5 @@ is **not safe** for production deployments. Before going live, set:
   output format would invalidate previously anchored proofs. Treat that file as
   append-only and add a new version function for breaking changes.
 - Production deployments **must** override the security headers in
-  `next.config.mjs` only to *tighten* them (e.g. swap `'unsafe-inline'` for a
+  `next.config.mjs` only to _tighten_ them (e.g. swap `'unsafe-inline'` for a
   nonce strategy once the framework supports it stably).

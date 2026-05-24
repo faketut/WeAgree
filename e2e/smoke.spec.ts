@@ -9,13 +9,13 @@ import { test, expect } from "@playwright/test";
  * spec gated by E2E_SUPABASE=1.
  */
 test.describe("smoke", () => {
-    test("landing page responds", async ({ page }) => {
-        const res = await page.goto("/");
-        expect(res?.status()).toBeLessThan(500);
-    });
+  test("landing page responds", async ({ page }) => {
+    const res = await page.goto("/");
+    expect(res?.status()).toBeLessThan(500);
+  });
 
-    test("protected route redirects unauthenticated user to /login", async ({ page }) => {
-        await page.goto("/dashboard");
-        await expect(page).toHaveURL(/\/login(\?|$)/);
-    });
+  test("protected route redirects unauthenticated user to /login", async ({ page }) => {
+    await page.goto("/dashboard");
+    await expect(page).toHaveURL(/\/login(\?|$)/);
+  });
 });

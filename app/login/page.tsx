@@ -66,12 +66,7 @@ export default function LoginPage() {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          <Button
-            onClick={signInWithGitHub}
-            disabled={loading}
-            className="w-full"
-            size="lg"
-          >
+          <Button onClick={signInWithGitHub} disabled={loading} className="w-full" size="lg">
             {loading ? "Redirecting…" : "Sign in with GitHub"}
           </Button>
           <Link

@@ -59,15 +59,10 @@ export async function deleteTemplate(id: string) {
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
-  const { error } = await supabase
-    .from("templates")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", user.id);
+  const { error } = await supabase.from("templates").delete().eq("id", id).eq("user_id", user.id);
 
   if (error) return { error: error.message };
 
   revalidatePath("/templates");
   return { success: true };
 }
-

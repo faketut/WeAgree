@@ -14,7 +14,7 @@ export function decodeByteaField(v: unknown): Buffer {
   if (typeof v === "string") {
     if (v.startsWith("\\x")) return Buffer.from(v.slice(2), "hex");
     // Some runtimes serialize bytea as JSON: {"type":"Buffer","data":[...]}
-    if (v.startsWith("{") && v.includes("\"data\"")) {
+    if (v.startsWith("{") && v.includes('"data"')) {
       try {
         const parsed: unknown = JSON.parse(v);
         if (isBufferLike(parsed)) return Buffer.from(parsed.data);

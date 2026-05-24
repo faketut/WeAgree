@@ -10,9 +10,7 @@
  */
 import { getKmsAdapter } from "./kms";
 
-export async function kmsSign(
-  data: Buffer
-): Promise<{ signature: Buffer; keyId: string }> {
+export async function kmsSign(data: Buffer): Promise<{ signature: Buffer; keyId: string }> {
   return getKmsAdapter().sign(data);
 }
 

@@ -24,10 +24,21 @@ export default function NewTemplatePage() {
             <CardDescription>Create a reusable agreement template.</CardDescription>
           </CardHeader>
           <CardContent>
-            <form action={async (formData: FormData) => { "use server"; await createTemplate(formData); }} className="space-y-4">
+            <form
+              action={async (formData: FormData) => {
+                "use server";
+                await createTemplate(formData);
+              }}
+              className="space-y-4"
+            >
               <div className="space-y-2">
                 <Label htmlFor="title">Title</Label>
-                <Input id="title" name="title" required placeholder="e.g. Service Agreement Template" />
+                <Input
+                  id="title"
+                  name="title"
+                  required
+                  placeholder="e.g. Service Agreement Template"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="content">Content</Label>
@@ -49,4 +60,3 @@ export default function NewTemplatePage() {
     </main>
   );
 }
-

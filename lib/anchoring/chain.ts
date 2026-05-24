@@ -9,9 +9,7 @@ export type ChainAnchorResult = {
  * Submit final_proof_hash to a chain anchor service.
  * Requires BLOCKCHAIN_RPC_URL (and optional BLOCKCHAIN_RPC_API_KEY).
  */
-export async function submitFinalProofHash(
-  finalProofHash: string
-): Promise<ChainAnchorResult> {
+export async function submitFinalProofHash(finalProofHash: string): Promise<ChainAnchorResult> {
   const rpcUrl = process.env.BLOCKCHAIN_RPC_URL?.trim();
   if (!rpcUrl) {
     throw new Error("Missing BLOCKCHAIN_RPC_URL");

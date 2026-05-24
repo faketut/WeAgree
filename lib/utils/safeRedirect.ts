@@ -8,7 +8,10 @@ const DEFAULT_PATH = "/dashboard";
  *
  * Returns "/dashboard" when input is missing or unsafe.
  */
-export function safeRelativePath(input: string | null | undefined, fallback = DEFAULT_PATH): string {
+export function safeRelativePath(
+  input: string | null | undefined,
+  fallback = DEFAULT_PATH
+): string {
   if (!input || typeof input !== "string") return fallback;
 
   let candidate = input.trim();

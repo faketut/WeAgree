@@ -30,9 +30,7 @@ export function generateEd25519KeypairPem(): {
 } {
   const { publicKey, privateKey } = crypto.generateKeyPairSync("ed25519");
   const publicKeyPem = publicKey.export({ type: "spki", format: "pem" }).toString();
-  const privateKeyPem = privateKey
-    .export({ type: "pkcs8", format: "pem" })
-    .toString();
+  const privateKeyPem = privateKey.export({ type: "pkcs8", format: "pem" }).toString();
   return { publicKeyPem, privateKeyPem };
 }
 
@@ -68,4 +66,3 @@ export function signWithEd25519Pem(privateKeyPem: string, data: Buffer): Buffer 
   const keyObj = crypto.createPrivateKey(privateKeyPem);
   return crypto.sign(null, data, keyObj);
 }
-

@@ -10,10 +10,7 @@ import { decryptPrivateKeyPem, signWithEd25519Pem } from "@/lib/signing/user-key
 import { ensureProfile, ensureUserKeypair } from "@/lib/account/provision";
 import { countSignatureSlots } from "@/lib/signaturePlaceholders";
 import crypto from "node:crypto";
-import {
-  sendSignatureRequestEmail,
-  sendAgreementFinalizedEmail,
-} from "@/lib/email/email-utils";
+import { sendSignatureRequestEmail, sendAgreementFinalizedEmail } from "@/lib/email/email-utils";
 import type { AgreementStatus } from "@/lib/types/database";
 import { passkeySigningRequired } from "@/lib/passkey/rp";
 import { verifyPasskeyAssertionForUser } from "@/app/actions/passkeys";
@@ -130,10 +127,7 @@ async function createAgreementInternal(formData: FormData, mode: CreateMode) {
     return { error: verErr?.message ?? "Version insert failed" };
   }
 
-  await supabase
-    .from("agreements")
-    .update({ current_version_id: ver.id })
-    .eq("id", root.id);
+  await supabase.from("agreements").update({ current_version_id: ver.id }).eq("id", root.id);
 
   revalidatePath("/dashboard");
   return { success: true, id: root.id };
@@ -175,8 +169,7 @@ export async function publishAgreement(agreementId: string, inviteEmail?: string
   const slotCount = countSignatureSlots(ver.content as string);
   if (slotCount <= 0) {
     return {
-      error:
-        "Draft content must include at least one {{signature}} placeholder before publishing.",
+      error: "Draft content must include at least one {{signature}} placeholder before publishing.",
     };
   }
 
@@ -281,12 +274,9 @@ export async function updateDraftAgreement(
       return { error: "Only draft versions can be updated here." };
     }
 
-    const nextTitle =
-      payload.title !== undefined ? payload.title.trim() : (ver.title as string);
+    const nextTitle = payload.title !== undefined ? payload.title.trim() : (ver.title as string);
     const nextContent =
-      payload.content !== undefined
-        ? payload.content.trim()
-        : (ver.content as string);
+      payload.content !== undefined ? payload.content.trim() : (ver.content as string);
 
     const slotCount = countSignatureSlots(nextContent);
     if (slotCount <= 0) {
@@ -324,7 +314,13 @@ export async function updateDraftAgreement(
   }
 
   if (row.status === "pending") {
-    return updatePendingAgreementContent(supabase, user.id, agreementId, row.current_version_id, payload);
+    return updatePendingAgreementContent(
+      supabase,
+      user.id,
+      agreementId,
+      row.current_version_id,
+      payload
+    );
   }
 
   return { error: "Only draft or pending agreements can be updated." };
@@ -349,12 +345,9 @@ async function updatePendingAgreementContent(
 
   const sigCount = await countSignaturesOnVersion(supabase, ver.id as string);
 
-  const nextTitle =
-    payload.title !== undefined ? payload.title.trim() : (ver.title as string);
+  const nextTitle = payload.title !== undefined ? payload.title.trim() : (ver.title as string);
   const nextContent =
-    payload.content !== undefined
-      ? payload.content.trim()
-      : (ver.content as string);
+    payload.content !== undefined ? payload.content.trim() : (ver.content as string);
 
   const slotCount = countSignatureSlots(nextContent);
   if (slotCount <= 0) {
@@ -520,9 +513,7 @@ export async function signAgreement(
 
   const { data: versionRow } = await supabase
     .from("agreement_versions")
-    .select(
-      "id, agreement_id, version_number, content_hash, required_signatures, status"
-    )
+    .select("id, agreement_id, version_number, content_hash, required_signatures, status")
     .eq("id", agreementRow.current_version_id)
     .maybeSingle();
 
@@ -535,14 +526,9 @@ export async function signAgreement(
   let passkeyVerified = false;
 
   const normalizedSlotIndex =
-    typeof slotIndex === "number" && Number.isInteger(slotIndex)
-      ? slotIndex
-      : null;
+    typeof slotIndex === "number" && Number.isInteger(slotIndex) ? slotIndex : null;
 
-  const sigCountBefore = await countSignaturesOnVersion(
-    supabase,
-    versionRow.id as string
-  );
+  const sigCountBefore = await countSignaturesOnVersion(supabase, versionRow.id as string);
   const isCreatorFirstSlot =
     normalizedSlotIndex === 0 &&
     user.id === (agreementRow as { creator_id: string }).creator_id &&
@@ -579,9 +565,7 @@ export async function signAgreement(
   const canonicalJson = canonicalize(signingPayload);
   const dataBytes = Buffer.from(canonicalJson, "utf8");
   const signingPayloadHash = sha256Hex(dataBytes);
-  const signerKeyFingerprint = sha256Hex(
-    contentHashForFingerprint(kp.publicKeyPem)
-  );
+  const signerKeyFingerprint = sha256Hex(contentHashForFingerprint(kp.publicKeyPem));
 
   let signatureBytes: Buffer | null = null;
   let kmsKeyId: string | null = null;
@@ -631,8 +615,7 @@ export async function signAgreement(
 
   if (existingSlot) {
     return {
-      error:
-        "That signature spot has already been used. Please choose another one.",
+      error: "That signature spot has already been used. Please choose another one.",
     };
   }
 
@@ -658,8 +641,7 @@ export async function signAgreement(
     passkey_assertion: passkeyVerified
       ? (passkey!.assertion as unknown as Record<string, unknown>)
       : null,
-    ...(annotation != null &&
-      annotation.trim() !== "" && { annotation: annotation.trim() }),
+    ...(annotation != null && annotation.trim() !== "" && { annotation: annotation.trim() }),
   });
 
   if (insertError) return { error: insertError.message };
@@ -682,9 +664,7 @@ export async function signAgreement(
     const versionId = agreementAfter.current_version_id as string;
     const { data: verAfter } = await supabase
       .from("agreement_versions")
-      .select(
-        "id, content, content_hash, required_signatures, is_encrypted, version_number"
-      )
+      .select("id, content, content_hash, required_signatures, is_encrypted, version_number")
       .eq("id", versionId)
       .maybeSingle();
 
@@ -693,10 +673,7 @@ export async function signAgreement(
       !(verAfter as { is_encrypted?: boolean }).is_encrypted &&
       typeof agreementAfter.required_signatures === "number"
     ) {
-      const plaintext = Buffer.from(
-        (verAfter as { content: string }).content,
-        "utf8"
-      );
+      const plaintext = Buffer.from((verAfter as { content: string }).content, "utf8");
       const { blob, keyId } = await kmsEncryptAgreementContent(plaintext);
 
       await supabase
@@ -733,9 +710,7 @@ export async function signAgreement(
         signature_hash: (s.signature_hash as string) ?? null,
         key_fingerprint: (s.signer_key_fingerprint as string) ?? null,
         key_version:
-          typeof s.signer_key_version === "number"
-            ? (s.signer_key_version as number)
-            : null,
+          typeof s.signer_key_version === "number" ? (s.signer_key_version as number) : null,
         passkey_credential_id: (s.webauthn_credential_id as string) ?? null,
       }));
 
@@ -759,8 +734,12 @@ export async function signAgreement(
       const finalProofHash = computeFinalProofHash(proofPayload);
       const signerListHash = computeSignerListHash(signers);
 
-      let chain: { chainName: string; transactionHash: string; blockNumber: number | null; anchoredAt: string } | null =
-        null;
+      let chain: {
+        chainName: string;
+        transactionHash: string;
+        blockNumber: number | null;
+        anchoredAt: string;
+      } | null = null;
       let anchorError: string | null = null;
       try {
         chain = await submitFinalProofHash(finalProofHash);
@@ -773,8 +752,7 @@ export async function signAgreement(
         const baseRow = {
           agreement_id: agreementId,
           agreement_version_id: versionId,
-          chain_name:
-            chain?.chainName ?? process.env.BLOCKCHAIN_CHAIN_NAME ?? "unknown",
+          chain_name: chain?.chainName ?? process.env.BLOCKCHAIN_CHAIN_NAME ?? "unknown",
           final_proof_hash: finalProofHash,
           content_hash: proofPayload.content_hash,
           signer_list_hash: signerListHash,
@@ -788,9 +766,7 @@ export async function signAgreement(
             : ({ error: anchorError } as unknown as Record<string, unknown>),
           updated_at: new Date().toISOString(),
         };
-        const { error: insA } = await admin
-          .from("agreement_version_anchors")
-          .insert(baseRow);
+        const { error: insA } = await admin.from("agreement_version_anchors").insert(baseRow);
         if (insA?.code === "23505") {
           await admin
             .from("agreement_version_anchors")

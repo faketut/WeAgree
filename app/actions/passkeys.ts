@@ -7,10 +7,7 @@ import {
   verifyAuthenticationResponse,
   verifyRegistrationResponse,
 } from "@simplewebauthn/server";
-import type {
-  AuthenticationResponseJSON,
-  RegistrationResponseJSON,
-} from "@simplewebauthn/types";
+import type { AuthenticationResponseJSON, RegistrationResponseJSON } from "@simplewebauthn/types";
 import { getWebAuthnExpectedOrigin, getWebAuthnRpId } from "@/lib/passkey/rp";
 import { decodeByteaField } from "@/lib/passkey/bytea";
 import { getDisplayName } from "@/lib/account/displayName";
@@ -236,14 +233,9 @@ export async function verifyPasskeyAssertionForUser(
       .select("id, content_hash, status")
       .eq("id", meta.agreement_version_id)
       .maybeSingle();
-    if (
-      !live ||
-      live.status !== "open_for_signing" ||
-      live.content_hash !== meta.content_hash
-    ) {
+    if (!live || live.status !== "open_for_signing" || live.content_hash !== meta.content_hash) {
       return {
-        error:
-          "The agreement was updated since you started signing. Refresh and try again.",
+        error: "The agreement was updated since you started signing. Refresh and try again.",
       };
     }
   }
@@ -271,9 +263,7 @@ export async function verifyPasskeyAssertionForUser(
       expectedOrigin: getWebAuthnExpectedOrigin(),
       expectedRPID: getWebAuthnRpId(),
       authenticator: {
-        credentialID: new Uint8Array(
-          Buffer.from(cred.credential_id as string, "base64url")
-        ),
+        credentialID: new Uint8Array(Buffer.from(cred.credential_id as string, "base64url")),
         credentialPublicKey: new Uint8Array(publicKeyBuf),
         counter: Number(cred.counter ?? 0),
       },

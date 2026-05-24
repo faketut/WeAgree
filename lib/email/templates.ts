@@ -1,24 +1,24 @@
 import { escapeHtml, safeHttpUrl } from "./escape";
 
 export interface EmailTemplateProps {
-    agreementTitle: string;
-    creatorName: string;
-    actionUrl: string;
+  agreementTitle: string;
+  creatorName: string;
+  actionUrl: string;
 }
 
 const FALLBACK_HOME = "https://weagree.app";
 
 export const signatureRequiredTemplate = ({
-    agreementTitle,
-    creatorName,
-    actionUrl,
+  agreementTitle,
+  creatorName,
+  actionUrl,
 }: EmailTemplateProps) => {
-    const title = escapeHtml(agreementTitle);
-    const creator = escapeHtml(creatorName);
-    const url = safeHttpUrl(actionUrl) ?? FALLBACK_HOME;
-    const urlAttr = escapeHtml(url);
-    const urlText = escapeHtml(url);
-    return `
+  const title = escapeHtml(agreementTitle);
+  const creator = escapeHtml(creatorName);
+  const url = safeHttpUrl(actionUrl) ?? FALLBACK_HOME;
+  const urlAttr = escapeHtml(url);
+  const urlText = escapeHtml(url);
+  return `
   <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
     <h2 style="color: #1a202c;">Signature Required</h2>
     <p style="color: #4a5568;">
@@ -42,16 +42,16 @@ export const signatureRequiredTemplate = ({
 };
 
 export const agreementFinalizedTemplate = ({
-    agreementTitle,
-    actionUrl,
+  agreementTitle,
+  actionUrl,
 }: {
-    agreementTitle: string;
-    actionUrl: string;
+  agreementTitle: string;
+  actionUrl: string;
 }) => {
-    const title = escapeHtml(agreementTitle);
-    const url = safeHttpUrl(actionUrl) ?? FALLBACK_HOME;
-    const urlAttr = escapeHtml(url);
-    return `
+  const title = escapeHtml(agreementTitle);
+  const url = safeHttpUrl(actionUrl) ?? FALLBACK_HOME;
+  const urlAttr = escapeHtml(url);
+  return `
   <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
     <h2 style="color: #1a202c;">Agreement Finalized! 🎉</h2>
     <p style="color: #4a5568;">

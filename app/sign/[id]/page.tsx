@@ -8,14 +8,9 @@ import { kmsDecryptAgreementContent } from "@/lib/signing/kms-client";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export default async function SignPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function SignPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const uuidRegex =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   if (!uuidRegex.test(id)) notFound();
 
   type AgreementForSign = {
@@ -33,9 +28,7 @@ export default async function SignPage({
 
   const supabaseServer = await createClient();
 
-  const rpc = await supabaseServer
-    .rpc("get_agreement_for_signing", { p_id: id })
-    .maybeSingle();
+  const rpc = await supabaseServer.rpc("get_agreement_for_signing", { p_id: id }).maybeSingle();
   const raw = rpc.data as Record<string, unknown> | null | undefined;
   if (
     raw &&
@@ -65,18 +58,14 @@ export default async function SignPage({
       const admin = createAdminClient();
       const result = await admin
         .from("agreements")
-        .select(
-          "id, status, required_signatures, current_version_id, title, content, content_hash"
-        )
+        .select("id, status, required_signatures, current_version_id, title, content, content_hash")
         .eq("id", id)
         .in("status", ["pending", "signed"])
         .maybeSingle();
       if (result.data?.current_version_id) {
         const ver = await admin
           .from("agreement_versions")
-          .select(
-            "id, version_number, title, content, content_hash, required_signatures, status"
-          )
+          .select("id, version_number, title, content, content_hash, required_signatures, status")
           .eq("id", result.data.current_version_id as string)
           .maybeSingle();
         const d = result.data as Record<string, unknown>;
@@ -86,14 +75,12 @@ export default async function SignPage({
           agreement = {
             id: d.id as string,
             agreementVersionId: v.id as string,
-            versionNumber:
-              typeof v.version_number === "number" ? (v.version_number as number) : 1,
+            versionNumber: typeof v.version_number === "number" ? (v.version_number as number) : 1,
             title: (v.title as string) ?? (d.title as string),
             content: v.content as string,
             content_hash: v.content_hash as string,
             status: d.status as string,
-            required_signatures:
-              typeof req === "number" && req >= 1 ? req : 1,
+            required_signatures: typeof req === "number" && req >= 1 ? req : 1,
           };
         }
       }
@@ -150,8 +137,7 @@ export default async function SignPage({
       signer_email: s.profiles?.email ?? null,
     })) ?? [];
 
-  const passkeyRequired =
-    process.env.NEXT_PUBLIC_AGREEMENT_PASSKEY_REQUIRED === "true";
+  const passkeyRequired = process.env.NEXT_PUBLIC_AGREEMENT_PASSKEY_REQUIRED === "true";
 
   type AnchorRow = {
     chain_name: string;

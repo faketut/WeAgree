@@ -5,11 +5,7 @@
 
 export type AgreementStatus = "draft" | "pending" | "signed" | "voided";
 
-export type AgreementVersionStatus =
-  | "draft"
-  | "open_for_signing"
-  | "superseded"
-  | "finalized";
+export type AgreementVersionStatus = "draft" | "open_for_signing" | "superseded" | "finalized";
 
 export type AnchorStatus = "pending" | "submitted" | "confirmed" | "failed";
 

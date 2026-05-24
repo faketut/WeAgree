@@ -1,8 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import {
-  encryptPrivateKeyPem,
-  generateEd25519KeypairPem,
-} from "@/lib/signing/user-keypair";
+import { encryptPrivateKeyPem, generateEd25519KeypairPem } from "@/lib/signing/user-keypair";
 import { getDisplayName } from "@/lib/account/displayName";
 
 export async function ensureProfile(
@@ -77,4 +74,3 @@ export async function ensureUserKeypair(
     };
   }
 }
-

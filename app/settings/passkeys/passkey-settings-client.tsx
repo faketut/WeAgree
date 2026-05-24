@@ -9,13 +9,7 @@ import {
 } from "@/app/actions/passkeys";
 import { startRegistration } from "@simplewebauthn/browser";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, KeyRound } from "lucide-react";
 
@@ -25,7 +19,13 @@ export function PasskeySettingsClient() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [credentials, setCredentials] = useState<
-    { id: string; nickname: string | null; created_at: string; last_used_at: string | null; status: string }[]
+    {
+      id: string;
+      nickname: string | null;
+      created_at: string;
+      last_used_at: string | null;
+      status: string;
+    }[]
   >([]);
 
   async function refresh() {
@@ -36,7 +36,10 @@ export function PasskeySettingsClient() {
   }
 
   async function handleRevoke(id: string) {
-    if (typeof window !== "undefined" && !window.confirm("Revoke this passkey? It can no longer be used for signing.")) {
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm("Revoke this passkey? It can no longer be used for signing.")
+    ) {
       return;
     }
     setError(null);
@@ -91,9 +94,9 @@ export function PasskeySettingsClient() {
           Signing passkeys
         </CardTitle>
         <CardDescription>
-          Register a passkey to cryptographically confirm your identity when signing
-          agreements. GitHub login is still used for your account; the passkey is your
-          signing key on this device.
+          Register a passkey to cryptographically confirm your identity when signing agreements.
+          GitHub login is still used for your account; the passkey is your signing key on this
+          device.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -117,11 +120,7 @@ export function PasskeySettingsClient() {
                   </div>
                 </div>
                 {c.status === "active" && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void handleRevoke(c.id)}
-                  >
+                  <Button variant="outline" size="sm" onClick={() => void handleRevoke(c.id)}>
                     Revoke
                   </Button>
                 )}

@@ -2,12 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
   FileText,
@@ -59,7 +54,9 @@ function parsePage(value: string | string[] | undefined): number {
 
 function buildHref(
   searchParams: SearchParams,
-  updates: Partial<Record<"search" | "draftsPage" | "pendingPage" | "signedPage" | "templatesPage", string>>
+  updates: Partial<
+    Record<"search" | "draftsPage" | "pendingPage" | "signedPage" | "templatesPage", string>
+  >
 ): string {
   const params = new URLSearchParams();
 
@@ -111,37 +108,17 @@ function PaginationControls({
         Page {page} of {totalPages}
       </span>
       <div className="flex items-center gap-1">
-        <Button
-          asChild
-          size="icon"
-          variant="outline"
-          disabled={!hasPrev}
-          className="h-7 w-7"
-        >
+        <Button asChild size="icon" variant="outline" disabled={!hasPrev} className="h-7 w-7">
           <Link
-            href={
-              hasPrev
-                ? buildHref(searchParams, { [pageParam]: String(page - 1) })
-                : "#"
-            }
+            href={hasPrev ? buildHref(searchParams, { [pageParam]: String(page - 1) }) : "#"}
             aria-disabled={!hasPrev}
           >
             <ChevronLeft className="h-3 w-3" />
           </Link>
         </Button>
-        <Button
-          asChild
-          size="icon"
-          variant="outline"
-          disabled={!hasNext}
-          className="h-7 w-7"
-        >
+        <Button asChild size="icon" variant="outline" disabled={!hasNext} className="h-7 w-7">
           <Link
-            href={
-              hasNext
-                ? buildHref(searchParams, { [pageParam]: String(page + 1) })
-                : "#"
-            }
+            href={hasNext ? buildHref(searchParams, { [pageParam]: String(page + 1) }) : "#"}
             aria-disabled={!hasNext}
           >
             <ChevronRight className="h-3 w-3" />
@@ -155,14 +132,11 @@ function PaginationControls({
 function SearchBox({ searchParams }: { searchParams: SearchParams }) {
   const searchValueRaw = searchParams.search;
   const searchValue = Array.isArray(searchValueRaw)
-    ? searchValueRaw[0] ?? ""
-    : searchValueRaw ?? "";
+    ? (searchValueRaw[0] ?? "")
+    : (searchValueRaw ?? "");
 
   return (
-    <form
-      method="get"
-      className="flex w-full max-w-md items-center gap-2"
-    >
+    <form method="get" className="flex w-full max-w-md items-center gap-2">
       <div className="relative flex-1">
         <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
@@ -216,28 +190,19 @@ export default async function DashboardPage({
 
   const baseDraftsQuery = supabase
     .from("agreements")
-    .select(
-      "id, title, status, created_at, signed_at, required_signatures",
-      { count: "exact" }
-    )
+    .select("id, title, status, created_at, signed_at, required_signatures", { count: "exact" })
     .eq("creator_id", user.id)
     .eq("status", "draft");
 
   const basePendingQuery = supabase
     .from("agreements")
-    .select(
-      "id, title, status, created_at, signed_at, required_signatures",
-      { count: "exact" }
-    )
+    .select("id, title, status, created_at, signed_at, required_signatures", { count: "exact" })
     .eq("creator_id", user.id)
     .eq("status", "pending");
 
   const baseSignedQuery = supabase
     .from("agreements")
-    .select(
-      "id, title, status, created_at, signed_at, required_signatures",
-      { count: "exact" }
-    )
+    .select("id, title, status, created_at, signed_at, required_signatures", { count: "exact" })
     .eq("creator_id", user.id)
     .eq("status", "signed");
 
@@ -246,15 +211,9 @@ export default async function DashboardPage({
     .select("id, title, created_at", { count: "exact" })
     .eq("user_id", user.id);
 
-  const draftsQuery = search
-    ? baseDraftsQuery.ilike("title", `%${search}%`)
-    : baseDraftsQuery;
-  const pendingQuery = search
-    ? basePendingQuery.ilike("title", `%${search}%`)
-    : basePendingQuery;
-  const signedQuery = search
-    ? baseSignedQuery.ilike("title", `%${search}%`)
-    : baseSignedQuery;
+  const draftsQuery = search ? baseDraftsQuery.ilike("title", `%${search}%`) : baseDraftsQuery;
+  const pendingQuery = search ? basePendingQuery.ilike("title", `%${search}%`) : basePendingQuery;
+  const signedQuery = search ? baseSignedQuery.ilike("title", `%${search}%`) : baseSignedQuery;
   const templatesQuery = search
     ? baseTemplatesQuery.ilike("title", `%${search}%`)
     : baseTemplatesQuery;
@@ -314,9 +273,7 @@ export default async function DashboardPage({
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div className="space-y-1">
             <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-            <p className="text-muted-foreground">
-              Manage your agreements and templates.
-            </p>
+            <p className="text-muted-foreground">Manage your agreements and templates.</p>
           </div>
           <div className="flex items-center gap-2">
             <Button asChild>
@@ -326,21 +283,13 @@ export default async function DashboardPage({
               </Link>
             </Button>
             <Button asChild variant="outline">
-              <Link
-                href="/templates/new"
-                className="inline-flex items-center gap-2"
-              >
+              <Link href="/templates/new" className="inline-flex items-center gap-2">
                 <FileCog className="h-4 w-4" />
                 New Template
               </Link>
             </Button>
             <form action="/auth/signout" method="post">
-              <Button
-                type="submit"
-                variant="ghost"
-                size="icon"
-                title="Sign out"
-              >
+              <Button type="submit" variant="ghost" size="icon" title="Sign out">
                 <LogOut className="h-4 w-4" />
               </Button>
             </form>
@@ -364,40 +313,27 @@ export default async function DashboardPage({
           <Card>
             <CardHeader className="pb-2">
               <CardDescription>
-                Unpublished draft agreements. Edit the content, then publish
-                when ready to collect signatures.
+                Unpublished draft agreements. Edit the content, then publish when ready to collect
+                signatures.
               </CardDescription>
             </CardHeader>
             <CardContent>
               {drafts.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No drafts.
-                </p>
+                <p className="text-sm text-muted-foreground">No drafts.</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-sm">
                     <thead className="border-b text-xs uppercase text-muted-foreground">
                       <tr>
-                        <th className="py-2 pr-4 text-left font-medium">
-                          Title
-                        </th>
-                        <th className="py-2 px-4 text-left font-medium">
-                          Created
-                        </th>
-                        <th className="py-2 px-4 text-left font-medium">
-                          Status
-                        </th>
-                        <th className="py-2 pl-4 text-right font-medium">
-                          Actions
-                        </th>
+                        <th className="py-2 pr-4 text-left font-medium">Title</th>
+                        <th className="py-2 px-4 text-left font-medium">Created</th>
+                        <th className="py-2 px-4 text-left font-medium">Status</th>
+                        <th className="py-2 pl-4 text-right font-medium">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {drafts.map((a) => (
-                        <tr
-                          key={a.id}
-                          className="border-b last:border-0 hover:bg-muted/40"
-                        >
+                        <tr key={a.id} className="border-b last:border-0 hover:bg-muted/40">
                           <td className="py-2 pr-4 align-middle">
                             <Link
                               href={`/dashboard/${a.id}`}
@@ -471,43 +407,28 @@ export default async function DashboardPage({
           <Card>
             <CardHeader className="pb-2">
               <CardDescription>
-                Agreements awaiting all required signatures. You can delete
-                pending agreements you no longer need.
+                Agreements awaiting all required signatures. You can delete pending agreements you
+                no longer need.
               </CardDescription>
             </CardHeader>
             <CardContent>
               {pending.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No pending agreements.
-                </p>
+                <p className="text-sm text-muted-foreground">No pending agreements.</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-sm">
                     <thead className="border-b text-xs uppercase text-muted-foreground">
                       <tr>
-                        <th className="py-2 pr-4 text-left font-medium">
-                          Title
-                        </th>
-                        <th className="py-2 px-4 text-left font-medium">
-                          Created
-                        </th>
-                        <th className="py-2 px-4 text-left font-medium">
-                          Status
-                        </th>
-                        <th className="py-2 px-4 text-left font-medium">
-                          Signatures
-                        </th>
-                        <th className="py-2 pl-4 text-right font-medium">
-                          Actions
-                        </th>
+                        <th className="py-2 pr-4 text-left font-medium">Title</th>
+                        <th className="py-2 px-4 text-left font-medium">Created</th>
+                        <th className="py-2 px-4 text-left font-medium">Status</th>
+                        <th className="py-2 px-4 text-left font-medium">Signatures</th>
+                        <th className="py-2 pl-4 text-right font-medium">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {pending.map((a) => (
-                        <tr
-                          key={a.id}
-                          className="border-b last:border-0 hover:bg-muted/40"
-                        >
+                        <tr key={a.id} className="border-b last:border-0 hover:bg-muted/40">
                           <td className="py-2 pr-4 align-middle">
                             <Link
                               href={`/dashboard/${a.id}`}
@@ -527,11 +448,7 @@ export default async function DashboardPage({
                           </td>
                           <td className="py-2 pl-4 align-middle text-right">
                             <div className="flex justify-end gap-2">
-                              <Button
-                                asChild
-                                size="sm"
-                                variant="outline"
-                              >
+                              <Button asChild size="sm" variant="outline">
                                 <Link href={`/dashboard/${a.id}`}>View</Link>
                               </Button>
                               <form
@@ -579,40 +496,27 @@ export default async function DashboardPage({
           <Card>
             <CardHeader className="pb-2">
               <CardDescription>
-                Finalized agreements that have collected all required
-                signatures. These are read-only.
+                Finalized agreements that have collected all required signatures. These are
+                read-only.
               </CardDescription>
             </CardHeader>
             <CardContent>
               {signed.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No signed agreements yet.
-                </p>
+                <p className="text-sm text-muted-foreground">No signed agreements yet.</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-sm">
                     <thead className="border-b text-xs uppercase text-muted-foreground">
                       <tr>
-                        <th className="py-2 pr-4 text-left font-medium">
-                          Title
-                        </th>
-                        <th className="py-2 px-4 text-left font-medium">
-                          Signed at
-                        </th>
-                        <th className="py-2 px-4 text-left font-medium">
-                          Status
-                        </th>
-                        <th className="py-2 pl-4 text-right font-medium">
-                          Actions
-                        </th>
+                        <th className="py-2 pr-4 text-left font-medium">Title</th>
+                        <th className="py-2 px-4 text-left font-medium">Signed at</th>
+                        <th className="py-2 px-4 text-left font-medium">Status</th>
+                        <th className="py-2 pl-4 text-right font-medium">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {signed.map((a) => (
-                        <tr
-                          key={a.id}
-                          className="border-b last:border-0 hover:bg-muted/40"
-                        >
+                        <tr key={a.id} className="border-b last:border-0 hover:bg-muted/40">
                           <td className="py-2 pr-4 align-middle">
                             <Link
                               href={`/dashboard/${a.id}`}
@@ -622,19 +526,13 @@ export default async function DashboardPage({
                             </Link>
                           </td>
                           <td className="py-2 px-4 align-middle text-xs text-muted-foreground">
-                            {a.signed_at
-                              ? new Date(a.signed_at).toLocaleString()
-                              : "—"}
+                            {a.signed_at ? new Date(a.signed_at).toLocaleString() : "—"}
                           </td>
                           <td className="py-2 px-4 align-middle">
                             <StatusBadge status={a.status} />
                           </td>
                           <td className="py-2 pl-4 align-middle text-right">
-                            <Button
-                              asChild
-                              size="sm"
-                              variant="outline"
-                            >
+                            <Button asChild size="sm" variant="outline">
                               <Link href={`/dashboard/${a.id}`}>View</Link>
                             </Button>
                           </td>
@@ -665,38 +563,27 @@ export default async function DashboardPage({
           <Card>
             <CardHeader className="pb-2">
               <CardDescription>
-                Reusable agreement templates. Create, edit, or delete templates
-                from here.
+                Reusable agreement templates. Create, edit, or delete templates from here.
               </CardDescription>
             </CardHeader>
             <CardContent>
               {templates.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  No templates yet. Create one to reuse its content when
-                  drafting agreements.
+                  No templates yet. Create one to reuse its content when drafting agreements.
                 </p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-sm">
                     <thead className="border-b text-xs uppercase text-muted-foreground">
                       <tr>
-                        <th className="py-2 pr-4 text-left font-medium">
-                          Title
-                        </th>
-                        <th className="py-2 px-4 text-left font-medium">
-                          Created
-                        </th>
-                        <th className="py-2 pl-4 text-right font-medium">
-                          Actions
-                        </th>
+                        <th className="py-2 pr-4 text-left font-medium">Title</th>
+                        <th className="py-2 px-4 text-left font-medium">Created</th>
+                        <th className="py-2 pl-4 text-right font-medium">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {templates.map((t) => (
-                        <tr
-                          key={t.id}
-                          className="border-b last:border-0 hover:bg-muted/40"
-                        >
+                        <tr key={t.id} className="border-b last:border-0 hover:bg-muted/40">
                           <td className="py-2 pr-4 align-middle">
                             <Link
                               href={`/templates/${t.id}/edit`}
@@ -706,9 +593,7 @@ export default async function DashboardPage({
                             </Link>
                           </td>
                           <td className="py-2 px-4 align-middle text-xs text-muted-foreground">
-                            {t.created_at
-                              ? new Date(t.created_at).toLocaleString()
-                              : "—"}
+                            {t.created_at ? new Date(t.created_at).toLocaleString() : "—"}
                           </td>
                           <td className="py-2 pl-4 align-middle text-right">
                             <div className="flex justify-end gap-2">
@@ -769,10 +654,7 @@ export default async function DashboardPage({
         </section>
 
         <p className="text-center text-sm text-muted-foreground">
-          <Link
-            href="/"
-            className="underline underline-offset-4 hover:text-foreground"
-          >
+          <Link href="/" className="underline underline-offset-4 hover:text-foreground">
             Back to home
           </Link>
         </p>
@@ -780,4 +662,3 @@ export default async function DashboardPage({
     </main>
   );
 }
-

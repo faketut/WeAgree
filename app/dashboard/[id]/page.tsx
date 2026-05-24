@@ -18,11 +18,7 @@ function getBaseUrl(): string {
   return getBaseUrlFromHeaders(headers());
 }
 
-export default async function AgreementSharePage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function AgreementSharePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
   const {
@@ -88,7 +84,9 @@ export default async function AgreementSharePage({
   if (agreement.status === "signed" && signatureVersionId) {
     const { data: sigs } = await supabase
       .from("signatures")
-      .select("signer_id, signer_name, signed_at, annotation, signature_display, signature_style, profiles(email)")
+      .select(
+        "signer_id, signer_name, signed_at, annotation, signature_display, signature_style, profiles(email)"
+      )
       .eq("agreement_version_id", signatureVersionId)
       .order("signed_at", { ascending: true });
     signatures =
@@ -206,10 +204,7 @@ export default async function AgreementSharePage({
                 <p className="mb-2 text-sm font-medium">Signatures</p>
                 <ul className="space-y-2 text-sm">
                   {signatures.map((s, i) => (
-                    <li
-                      key={i}
-                      className="border-b border-border/50 pb-2 last:border-0 last:pb-0"
-                    >
+                    <li key={i} className="border-b border-border/50 pb-2 last:border-0 last:pb-0">
                       <div className="flex flex-col gap-1">
                         {s.signature_display?.startsWith("data:image/") ? (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -272,11 +267,7 @@ export default async function AgreementSharePage({
                   await deleteAgreement(agreement.id);
                 }}
               >
-                <Button
-                  type="submit"
-                  variant="destructive"
-                  className="mt-2"
-                >
+                <Button type="submit" variant="destructive" className="mt-2">
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete pending agreement
                 </Button>

@@ -64,4 +64,3 @@ function sortValue(v: unknown, seen: WeakSet<object>, path: string): unknown {
   seen.delete(obj);
   return out;
 }
-

@@ -10,9 +10,7 @@ export default function Home() {
           <div className="inline-flex items-center justify-center rounded-lg bg-primary/10 p-3">
             <FileSignature className="h-10 w-10 text-primary" />
           </div>
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-            We Agree
-          </h1>
+          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">We Agree</h1>
           <p className="text-lg text-muted-foreground">
             Create, share, and sign agreements with trust and immutability.
           </p>

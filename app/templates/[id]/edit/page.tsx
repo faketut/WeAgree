@@ -9,11 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Trash2 } from "lucide-react";
 
-export default async function EditTemplatePage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function EditTemplatePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
   const {
@@ -88,4 +84,3 @@ export default async function EditTemplatePage({
     </main>
   );
 }
-

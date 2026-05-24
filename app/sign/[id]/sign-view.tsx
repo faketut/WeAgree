@@ -9,13 +9,7 @@ import { beginPasskeySignForAgreement } from "@/app/actions/passkeys";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -94,14 +88,14 @@ export function SignView({
   const [user, setUser] = useState<{ id: string } | null>(null);
   const [annotation, setAnnotation] = useState("");
   const [signatureText, setSignatureText] = useState("");
-  const [signatureStyle, setSignatureStyle] = useState<"script" | "bold" | "simple" | "draw" | "upload">("script");
+  const [signatureStyle, setSignatureStyle] = useState<
+    "script" | "bold" | "simple" | "draw" | "upload"
+  >("script");
   const [signatureDataUri, setSignatureDataUri] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
 
   const alreadySigned = status === "signed";
-  const currentUserSignature = user
-    ? signatures.find((s) => s.signer_id === user.id)
-    : null;
+  const currentUserSignature = user ? signatures.find((s) => s.signer_id === user.id) : null;
 
   useEffect(() => {
     async function verify() {
@@ -158,9 +152,7 @@ export function SignView({
           passkeyPayload = { challengeId: opts.challengeId, assertion };
         } catch (e) {
           setSigning(false);
-          setError(
-            e instanceof Error ? e.message : "Passkey authentication was cancelled."
-          );
+          setError(e instanceof Error ? e.message : "Passkey authentication was cancelled.");
           return;
         }
       }
@@ -234,7 +226,8 @@ export function SignView({
               <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30 [&>svg]:text-amber-600">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
-                  Content verification failed. This document may have been tampered with. Do not sign.
+                  Content verification failed. This document may have been tampered with. Do not
+                  sign.
                 </AlertDescription>
               </Alert>
             )}
@@ -257,9 +250,7 @@ export function SignView({
                           type="button"
                           onClick={() => {
                             if (occupied) return;
-                            setSelectedSlot(
-                              isSelected ? null : slot.index,
-                            );
+                            setSelectedSlot(isSelected ? null : slot.index);
                           }}
                           className={[
                             "rounded border px-2 py-1 text-xs",
@@ -273,7 +264,8 @@ export function SignView({
                         >
                           {occupied ? (
                             <>
-                              Spot {slot.index + 1}: signed by {occupied.signature_display || occupied.signer_name}
+                              Spot {slot.index + 1}: signed by{" "}
+                              {occupied.signature_display || occupied.signer_name}
                             </>
                           ) : (
                             <>Spot {slot.index + 1}: available</>
@@ -299,9 +291,7 @@ export function SignView({
                   Status: {anchor.anchor_status} · Chain: {anchor.chain_name}
                 </p>
                 {anchor.transaction_hash && (
-                  <p className="font-mono text-xs break-all">
-                    Tx: {anchor.transaction_hash}
-                  </p>
+                  <p className="font-mono text-xs break-all">Tx: {anchor.transaction_hash}</p>
                 )}
                 {anchor.block_number != null && (
                   <p className="text-xs">Block: {anchor.block_number}</p>
@@ -412,9 +402,7 @@ export function SignView({
                   ) : (
                     <Tabs
                       defaultValue="type"
-                      onValueChange={(v) =>
-                        setSignatureStyle(v as typeof signatureStyle)
-                      }
+                      onValueChange={(v) => setSignatureStyle(v as typeof signatureStyle)}
                       className="w-full"
                     >
                       <TabsList className="grid w-full grid-cols-3">
@@ -445,8 +433,11 @@ export function SignView({
                             <button
                               type="button"
                               onClick={() => setSignatureStyle("script")}
-                              className={`rounded border px-2 py-1 ${signatureStyle === "script" ? "border-primary text-primary" : "border-border"
-                                }`}
+                              className={`rounded border px-2 py-1 ${
+                                signatureStyle === "script"
+                                  ? "border-primary text-primary"
+                                  : "border-border"
+                              }`}
                             >
                               <span className="italic font-semibold">
                                 {signatureText || "Script style"}
@@ -455,8 +446,11 @@ export function SignView({
                             <button
                               type="button"
                               onClick={() => setSignatureStyle("bold")}
-                              className={`rounded border px-2 py-1 ${signatureStyle === "bold" ? "border-primary text-primary" : "border-border"
-                                }`}
+                              className={`rounded border px-2 py-1 ${
+                                signatureStyle === "bold"
+                                  ? "border-primary text-primary"
+                                  : "border-border"
+                              }`}
                             >
                               <span className="font-bold tracking-wide">
                                 {signatureText || "Bold style"}
@@ -465,12 +459,13 @@ export function SignView({
                             <button
                               type="button"
                               onClick={() => setSignatureStyle("simple")}
-                              className={`rounded border px-2 py-1 ${signatureStyle === "simple" ? "border-primary text-primary" : "border-border"
-                                }`}
+                              className={`rounded border px-2 py-1 ${
+                                signatureStyle === "simple"
+                                  ? "border-primary text-primary"
+                                  : "border-border"
+                              }`}
                             >
-                              <span className="font-medium">
-                                {signatureText || "Simple style"}
-                              </span>
+                              <span className="font-medium">{signatureText || "Simple style"}</span>
                             </button>
                           </div>
                         </div>
@@ -531,12 +526,7 @@ export function SignView({
           </CardContent>
         </Card>
         <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.refresh()}
-            className="gap-1.5"
-          >
+          <Button variant="ghost" size="sm" onClick={() => router.refresh()} className="gap-1.5">
             <RefreshCw className="h-4 w-4" />
             Refresh to see latest
           </Button>

@@ -9,13 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { sendSignatureRequest } from "@/app/actions/agreements";
 
-export function SharePanel({
-  signUrl,
-  agreementId,
-}: {
-  signUrl: string;
-  agreementId: string;
-}) {
+export function SharePanel({ signUrl, agreementId }: { signUrl: string; agreementId: string }) {
   const [copied, setCopied] = useState(false);
 
   async function copyLink() {
@@ -72,7 +66,9 @@ export function SharePanel({
         </div>
         <div className="flex-1 space-y-4">
           <div className="space-y-2">
-            <p className="break-all text-xs font-mono text-muted-foreground bg-muted/50 p-2 rounded border">{signUrl}</p>
+            <p className="break-all text-xs font-mono text-muted-foreground bg-muted/50 p-2 rounded border">
+              {signUrl}
+            </p>
             <Button variant="outline" size="sm" onClick={copyLink} className="w-full sm:w-auto">
               {copied ? (
                 <>
@@ -90,7 +86,9 @@ export function SharePanel({
 
           <div className="pt-4 border-t border-dashed border-border/50 space-y-3">
             <div className="space-y-2">
-              <Label htmlFor="invite-email" className="text-xs">Invite by email</Label>
+              <Label htmlFor="invite-email" className="text-xs">
+                Invite by email
+              </Label>
               <div className="flex gap-2">
                 <Input
                   id="invite-email"
@@ -102,7 +100,7 @@ export function SharePanel({
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={sendingEmail}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
+                    if (e.key === "Enter") {
                       e.preventDefault();
                       handleSendEmail();
                     }
@@ -123,9 +121,7 @@ export function SharePanel({
                 </Button>
               </div>
             </div>
-            {emailError && (
-              <p className="text-[10px] font-medium text-destructive">{emailError}</p>
-            )}
+            {emailError && <p className="text-[10px] font-medium text-destructive">{emailError}</p>}
             {emailSuccess && (
               <p className="text-[10px] font-medium text-green-600 dark:text-green-400">
                 Invite link sent successfully!
