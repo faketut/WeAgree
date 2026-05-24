@@ -1,4 +1,5 @@
 import { resend } from "./client";
+import { log } from "@/lib/log";
 import {
     signatureRequiredTemplate,
     agreementFinalizedTemplate,
@@ -14,7 +15,7 @@ export async function sendSignatureRequestEmail({
     actionUrl,
 }: EmailTemplateProps & { to: string }) {
     if (!resend) {
-        console.log(`[EMAIL SIMULATION] To: ${to}, Subject: Signature Required - ${agreementTitle}`);
+        log.info("[email simulated] signature request", { to, agreementTitle });
         return { success: true, simulated: true };
     }
 
@@ -48,7 +49,7 @@ export async function sendAgreementFinalizedEmail({
     actionUrl: string;
 }) {
     if (!resend) {
-        console.log(`[EMAIL SIMULATION] To: ${to}, Subject: Agreement Finalized - ${agreementTitle}`);
+        log.info("[email simulated] agreement finalized", { to, agreementTitle });
         return { success: true, simulated: true };
     }
 

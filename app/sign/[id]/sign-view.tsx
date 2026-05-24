@@ -193,7 +193,7 @@ export function SignView({
       occupiedBySlot.set(s.slot_index, s);
     }
   }
-  const allSlotsFilled = slots.length > 0 && slots.every((slot) => occupiedBySlot.has(slot.index));
+  const _allSlotsFilled = slots.length > 0 && slots.every((slot) => occupiedBySlot.has(slot.index));
 
   return (
     <main className="min-h-screen bg-muted/30 p-4 md:p-8">

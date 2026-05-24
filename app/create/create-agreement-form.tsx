@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createAgreement, createDraftAgreement } from "@/app/actions/agreements";
 import { Button } from "@/components/ui/button";
@@ -16,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { FileText, ArrowLeft, AlertCircle, Save } from "lucide-react";
+import { FileText, AlertCircle, Save } from "lucide-react";
 
 export function CreateAgreementForm({
     defaultTitle,

@@ -13,7 +13,7 @@ import {
   sendSignatureRequestEmail,
   sendAgreementFinalizedEmail,
 } from "@/lib/email/email-utils";
-import type { Agreement, AgreementStatus } from "@/lib/types/database";
+import type { AgreementStatus } from "@/lib/types/database";
 import { passkeySigningRequired } from "@/lib/passkey/rp";
 import { verifyPasskeyAssertionForUser } from "@/app/actions/passkeys";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/types";

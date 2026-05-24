@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/button";
-import { Copy, Check, Send, Loader2, Mail } from "lucide-react";
+import { Copy, Check, Loader2, Mail } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { sendSignatureRequest } from "@/app/actions/agreements";

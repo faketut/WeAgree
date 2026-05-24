@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Eraser, Check } from "lucide-react";
 
 interface SignaturePadProps {
-    onSave: (dataUri: string) => void;
+    onSave: (_dataUri: string) => void;
     onClear: () => void;
 }
 

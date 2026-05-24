@@ -7,14 +7,12 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
   FileText,
   PlusCircle,
   Clock,
-  CheckCircle,
   FileCheck,
   LogOut,
   FileCog,
@@ -23,11 +21,10 @@ import {
   Search,
   Trash2,
   Edit3,
-  Send,
   Pencil,
 } from "lucide-react";
 import type { AgreementStatus, Agreement, Template } from "@/lib/types/database";
-import { deleteAgreement, publishAgreement } from "@/app/actions/agreements";
+import { deleteAgreement } from "@/app/actions/agreements";
 import { deleteTemplate } from "@/app/actions/templates";
 import { PublishDraftDialog } from "./publish-draft-dialog";
 import { StatusBadge } from "@/components/status-badge";

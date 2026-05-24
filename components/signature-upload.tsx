@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Upload, X, Check } from "lucide-react";
 
 interface SignatureUploadProps {
-    onSave: (dataUri: string) => void;
+    onSave: (_dataUri: string) => void;
     onClear: () => void;
 }
 
