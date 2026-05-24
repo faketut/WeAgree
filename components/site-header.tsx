@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { FileSignature, LogOut, KeyRound } from "lucide-react";
 
 type SiteHeaderProps = {
@@ -40,6 +41,7 @@ export function SiteHeader({ authed = true, rightSlot }: SiteHeaderProps) {
                   Passkeys
                 </Link>
               </Button>
+              <ThemeToggle />
               <form action="/auth/signout" method="post">
                 <Button type="submit" variant="ghost" size="icon" title="Sign out">
                   <LogOut className="h-4 w-4" />
@@ -47,6 +49,7 @@ export function SiteHeader({ authed = true, rightSlot }: SiteHeaderProps) {
               </form>
             </>
           )}
+          {!authed && <ThemeToggle />}
         </nav>
       </div>
     </header>
