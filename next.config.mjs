@@ -1,10 +1,20 @@
 /** @type {import('next').NextConfig} */
 
-// Strict but practical CSP. 'unsafe-inline' is required for Next's runtime
-// inline styles and hydration shims; tighten if/when a nonce strategy lands.
+const isProd = process.env.NODE_ENV === "production";
+
+// CSP notes:
+// - 'unsafe-eval' is needed for React Refresh in dev; dropped in prod.
+// - 'unsafe-inline' on script-src is still needed for Next 14's hydration
+//   pattern (`__next_f` push). The clean fix is per-request nonces injected
+//   from middleware + 'strict-dynamic'; that swap needs e2e verification of
+//   hydration in a live env. Tracked as a Phase-2 follow-up.
+const scriptSrc = isProd
+    ? "script-src 'self' 'unsafe-inline'"
+    : "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
+
 const CSP = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    scriptSrc,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
