@@ -1,6 +1,12 @@
 /** @type {import('next').NextConfig} */
 
+import withBundleAnalyzerInit from "@next/bundle-analyzer";
+
 const isProd = process.env.NODE_ENV === "production";
+
+const withBundleAnalyzer = withBundleAnalyzerInit({
+    enabled: process.env.ANALYZE === "true",
+});
 
 // CSP notes:
 // - 'unsafe-eval' is needed for React Refresh in dev; dropped in prod.
@@ -43,4 +49,4 @@ const nextConfig = {
     },
 };
 
-export default nextConfig;
+export default withBundleAnalyzer(nextConfig);

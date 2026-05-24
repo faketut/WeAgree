@@ -1,15 +1,44 @@
 const fs = require("node:fs");
 const crypto = require("node:crypto");
 
+// Canonical JSON — must stay in sync with lib/signing/json-canonical.ts.
+// Rejects undefined / non-finite numbers / functions / symbols / bigint /
+// cyclic refs so this CLI verifier matches the server's hashing rules.
 function canonicalize(value) {
-  return JSON.stringify(sortValue(value));
+  return JSON.stringify(sortValue(value, new WeakSet(), "$"));
 }
 
-function sortValue(v) {
-  if (v === null || typeof v !== "object") return v;
-  if (Array.isArray(v)) return v.map(sortValue);
+function sortValue(v, seen, path) {
+  if (v === undefined) {
+    throw new Error(`undefined is not allowed (at ${path})`);
+  }
+  if (v === null) return v;
+  const t = typeof v;
+  if (t === "number") {
+    if (!Number.isFinite(v)) {
+      throw new Error(`non-finite number is not allowed (at ${path}): ${String(v)}`);
+    }
+    return v;
+  }
+  if (t === "string" || t === "boolean") return v;
+  if (t === "function" || t === "symbol" || t === "bigint") {
+    throw new Error(`${t} is not allowed (at ${path})`);
+  }
+  const obj = v;
+  if (seen.has(obj)) {
+    throw new Error(`cyclic reference detected (at ${path})`);
+  }
+  seen.add(obj);
+  if (Array.isArray(v)) {
+    const out = v.map((item, i) => sortValue(item, seen, `${path}[${i}]`));
+    seen.delete(obj);
+    return out;
+  }
   const out = {};
-  for (const key of Object.keys(v).sort()) out[key] = sortValue(v[key]);
+  for (const key of Object.keys(v).sort()) {
+    out[key] = sortValue(v[key], seen, `${path}.${key}`);
+  }
+  seen.delete(obj);
   return out;
 }
 
