@@ -57,25 +57,27 @@ export function CreateAgreementForm({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <FileText className="h-6 w-6" />
-          New Agreement
+    <Card className="border-border shadow-paper">
+      <CardHeader className="space-y-2 border-b border-border pb-5">
+        <p className="eyebrow">New agreement</p>
+        <CardTitle className="flex items-center gap-2 font-serif text-2xl font-semibold tracking-tight">
+          <FileText className="h-5 w-5 text-primary" />
+          Draft an agreement
         </CardTitle>
-        <CardDescription>
-          Create a new agreement. Content supports plain text or Markdown. Use{" "}
-          <code className="rounded bg-muted px-1">{`{{Name}}`}</code> for variables and{" "}
-          <code className="rounded bg-muted px-1">{`{{signature}}`}</code> to mark where each signer
-          should sign.
+        <CardDescription className="text-pretty">
+          Content supports plain text or Markdown. Use{" "}
+          <code className="rounded-sm bg-muted px-1 py-0.5 font-mono text-[0.85em]">{`{{Name}}`}</code>{" "}
+          for variables and{" "}
+          <code className="rounded-sm bg-muted px-1 py-0.5 font-mono text-[0.85em]">{`{{signature}}`}</code>{" "}
+          to mark where each signer should sign.
         </CardDescription>
         {fromTemplate && (
           <p className="text-xs text-muted-foreground">
-            Pre-filled from template: <span className="font-medium">{fromTemplate}</span>
+            Pre-filled from template: <span className="font-medium text-foreground">{fromTemplate}</span>
           </p>
         )}
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="title">Title</Label>

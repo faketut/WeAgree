@@ -45,31 +45,32 @@ export function EditDraftForm({
   }
 
   return (
-    <main className="min-h-screen bg-muted/30 p-4 md:p-8">
+    <main className="min-h-screen bg-paper p-4 md:p-8">
       <div className="mx-auto max-w-2xl space-y-6">
         <Link
           href={`/dashboard/${agreementId}`}
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to agreement
         </Link>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-6 w-6" />
+        <Card className="border-border shadow-paper">
+          <CardHeader className="space-y-2 border-b border-border pb-5">
+            <p className="eyebrow">{status === "pending" ? "Pending edit" : "Draft edit"}</p>
+            <CardTitle className="flex items-center gap-2 font-serif text-2xl font-semibold tracking-tight">
+              <FileText className="h-5 w-5 text-primary" />
               {status === "pending" ? "Edit pending agreement" : "Edit draft"}
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-pretty">
               Update title and content. Use{" "}
-              <code className="rounded bg-muted px-1">{`{{signature}}`}</code> wherever a signer
-              should sign.
+              <code className="rounded-sm bg-muted px-1 py-0.5 font-mono text-[0.85em]">{`{{signature}}`}</code>{" "}
+              wherever a signer should sign.
               {status === "draft"
                 ? " When ready, publish from the agreement page."
                 : " If others have already signed, saving creates a new version and they will need to sign again."}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Title</Label>

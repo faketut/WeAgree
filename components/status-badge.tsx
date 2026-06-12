@@ -1,7 +1,12 @@
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Clock, FileText } from "lucide-react";
+import { CheckCircle, Clock, FileText, Ban } from "lucide-react";
 import type { AgreementStatus } from "@/lib/types/database";
 
+// Editorial Legal status palette:
+// - draft   : neutral ink on paper, hairline border
+// - pending : burnt-amber on warm cream (uses --warning channel)
+// - signed  : deep moss on parchment    (uses --success channel)
+// - voided  : oxblood/destructive
 export const STATUS_CONFIG: Record<
   AgreementStatus,
   {
@@ -14,25 +19,31 @@ export const STATUS_CONFIG: Record<
   draft: {
     label: "Draft",
     icon: FileText,
-    variant: "secondary",
+    variant: "outline",
     className:
-      "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800/40 dark:text-slate-300 dark:border-slate-700",
+      "border-border bg-muted/60 text-muted-foreground",
   },
   pending: {
     label: "Pending",
     icon: Clock,
     variant: "outline",
     className:
-      "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800",
+      "border-[hsl(var(--warning)/0.35)] bg-[hsl(var(--warning)/0.10)] text-[hsl(var(--warning))]",
   },
   signed: {
     label: "Signed",
     icon: CheckCircle,
-    variant: "default",
+    variant: "outline",
     className:
-      "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800",
+      "border-[hsl(var(--success)/0.35)] bg-[hsl(var(--success)/0.10)] text-[hsl(var(--success))]",
   },
-  voided: { label: "Voided", icon: FileText, variant: "destructive" },
+  voided: {
+    label: "Voided",
+    icon: Ban,
+    variant: "outline",
+    className:
+      "border-[hsl(var(--destructive)/0.35)] bg-[hsl(var(--destructive)/0.10)] text-[hsl(var(--destructive))]",
+  },
 };
 
 export function StatusBadge({
@@ -45,8 +56,17 @@ export function StatusBadge({
   const cfg = STATUS_CONFIG[status];
   const Icon = cfg.icon;
   return (
-    <Badge variant={cfg.variant} className={[cfg.className, className].filter(Boolean).join(" ")}>
-      <Icon className="mr-1 h-3 w-3" />
+    <Badge
+      variant={cfg.variant}
+      className={[
+        "gap-1.5 rounded-sm px-2 py-0.5 font-medium uppercase tracking-wider text-[10px]",
+        cfg.className,
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <Icon className="h-3 w-3" />
       {cfg.label}
     </Badge>
   );

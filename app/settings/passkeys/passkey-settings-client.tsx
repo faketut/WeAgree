@@ -87,19 +87,20 @@ export function PasskeySettingsClient() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <KeyRound className="h-5 w-5" />
+    <Card className="border-border shadow-paper">
+      <CardHeader className="space-y-2 border-b border-border pb-5">
+        <p className="eyebrow">Identity</p>
+        <CardTitle className="flex items-center gap-2 font-serif text-2xl font-semibold tracking-tight">
+          <KeyRound className="h-5 w-5 text-primary" />
           Signing passkeys
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-pretty">
           Register a passkey to cryptographically confirm your identity when signing agreements.
           GitHub login is still used for your account; the passkey is your signing key on this
           device.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 pt-6">
         {listing ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -108,10 +109,15 @@ export function PasskeySettingsClient() {
         ) : credentials.length > 0 ? (
           <ul className="space-y-2 text-sm">
             {credentials.map((c) => (
-              <li key={c.id} className="rounded border p-3 flex items-start justify-between gap-3">
+              <li
+                key={c.id}
+                className="rounded-sm border border-border bg-muted/30 p-3 flex items-start justify-between gap-3"
+              >
                 <div>
                   <span className="font-medium">{c.nickname ?? "Passkey"}</span>
-                  <span className="ml-2 text-muted-foreground">({c.status})</span>
+                  <span className="ml-2 text-xs text-muted-foreground uppercase tracking-wider">
+                    {c.status}
+                  </span>
                   <div className="text-xs text-muted-foreground mt-1">
                     Added {new Date(c.created_at).toLocaleString()}
                     {c.last_used_at && (
@@ -137,8 +143,8 @@ export function PasskeySettingsClient() {
           </Alert>
         )}
         {success && (
-          <Alert className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30">
-            <AlertDescription className="text-green-800 dark:text-green-200">
+          <Alert className="border-[hsl(var(--success)/0.35)] bg-[hsl(var(--success)/0.08)]">
+            <AlertDescription className="text-[hsl(var(--success))]">
               {success}
             </AlertDescription>
           </Alert>

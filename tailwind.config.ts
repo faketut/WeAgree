@@ -11,6 +11,29 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
+        serif: [
+          "var(--font-serif)",
+          "ui-serif",
+          "Georgia",
+          "Cambria",
+          "Times New Roman",
+          "serif",
+        ],
+        mono: [
+          "var(--font-mono)",
+          "ui-monospace",
+          "SFMono-Regular",
+          "Menlo",
+          "Consolas",
+          "monospace",
+        ],
+        display: [
+          "var(--font-serif)",
+          "ui-serif",
+          "Georgia",
+          "Cambria",
+          "serif",
+        ],
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -55,10 +78,14 @@ const config: Config = {
         warning: "hsl(var(--warning))",
       },
       boxShadow: {
-        xs: "0 1px 2px 0 rgb(0 0 0 / 0.04)",
-        card: "0 1px 2px 0 rgb(0 0 0 / 0.03), 0 1px 3px 0 rgb(0 0 0 / 0.04)",
+        // Editorial Legal shadow scale.
+        // Sharper, ink-toned shadows that read as printed paper, not glass-morphism.
+        xs: "0 1px 0 0 hsl(24 12% 14% / 0.04)",
+        card: "0 1px 0 0 hsl(24 12% 14% / 0.04), 0 1px 2px 0 hsl(24 12% 14% / 0.04)",
         elevated:
-          "0 1px 2px 0 rgb(0 0 0 / 0.04), 0 4px 12px -2px rgb(0 0 0 / 0.06), 0 12px 32px -8px rgb(0 0 0 / 0.08)",
+          "0 1px 0 0 hsl(24 12% 14% / 0.04), 0 4px 12px -4px hsl(24 12% 14% / 0.10), 0 12px 28px -10px hsl(24 12% 14% / 0.10)",
+        paper:
+          "0 0 0 1px hsl(36 18% 84% / 1), 0 1px 0 0 hsl(24 12% 14% / 0.03), 0 8px 24px -12px hsl(24 12% 14% / 0.12)",
       },
     },
   },

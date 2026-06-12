@@ -1,12 +1,30 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Source_Serif_4, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
+// Editorial Legal type system.
+// Sans: Inter (UI, body). Serif: Source Serif 4 (headings, display).
+// Mono: JetBrains Mono (hashes, transaction ids, anchor proofs).
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
+const sourceSerif = Source_Serif_4({
+  subsets: ["latin"],
+  variable: "--font-serif",
+  display: "swap",
+});
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
-  title: "We Agree — Secure Agreement Platform",
-  description: "Create, edit, and digitally sign agreements with trust and immutability.",
+  title: "We Agree — Cryptographic Agreements",
+  description:
+    "Draft, sign, and anchor agreements with passkey-bound Ed25519 signatures and a public, verifiable proof of record.",
 };
 
 // Inline, blocking script: applies the saved theme (or system default) BEFORE
@@ -30,7 +48,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${inter.variable} ${sourceSerif.variable} ${jetbrainsMono.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>

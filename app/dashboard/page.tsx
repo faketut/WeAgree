@@ -3,7 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import {
   FileText,
   PlusCircle,
@@ -268,14 +267,17 @@ export default async function DashboardPage({
   const templatesTotal = templatesRes.count ?? null;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-paper">
       <SiteHeader />
-      <main className="px-4 py-8 md:px-6 md:py-10">
-        <div className="mx-auto max-w-6xl space-y-8">
-          <header className="flex flex-wrap items-center justify-between gap-4">
-            <div className="space-y-1">
-              <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-              <p className="text-sm text-muted-foreground">Manage your agreements and templates.</p>
+      <main className="px-4 py-10 md:px-6 md:py-14">
+        <div className="mx-auto max-w-6xl space-y-10">
+          <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-6">
+            <div className="space-y-1.5">
+              <p className="eyebrow">Workspace</p>
+              <h1 className="font-serif text-4xl font-semibold tracking-tight">Dashboard</h1>
+              <p className="text-sm text-muted-foreground">
+                Drafts, pending agreements, signed records, and templates.
+              </p>
             </div>
             <div className="flex items-center gap-2">
               <Button asChild variant="outline">
@@ -297,15 +299,16 @@ export default async function DashboardPage({
             <SearchBox searchParams={sp} />
           </div>
 
-          <Separator />
-
           {/* Draft agreements table */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="flex items-center gap-2 text-lg font-semibold">
-                <FileText className="h-5 w-5 text-muted-foreground" />
-                Drafts
-              </h2>
+          <section className="space-y-4">
+            <div className="flex items-end justify-between gap-2 border-b border-border pb-2">
+              <div>
+                <p className="eyebrow">Section &middot; 01</p>
+                <h2 className="flex items-center gap-2 font-serif text-2xl font-semibold tracking-tight">
+                  <FileText className="h-5 w-5 text-muted-foreground" />
+                  Drafts
+                </h2>
+              </div>
             </div>
             <Card>
               <CardHeader className="pb-2">
@@ -394,12 +397,15 @@ export default async function DashboardPage({
           </section>
 
           {/* Pending agreements table */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="flex items-center gap-2 text-lg font-semibold">
-                <Clock className="h-5 w-5 text-muted-foreground" />
-                Pending agreements
-              </h2>
+          <section className="space-y-4">
+            <div className="flex items-end justify-between gap-2 border-b border-border pb-2">
+              <div>
+                <p className="eyebrow">Section &middot; 02</p>
+                <h2 className="flex items-center gap-2 font-serif text-2xl font-semibold tracking-tight">
+                  <Clock className="h-5 w-5 text-muted-foreground" />
+                  Pending agreements
+                </h2>
+              </div>
             </div>
             <Card>
               <CardHeader className="pb-2">
@@ -483,12 +489,15 @@ export default async function DashboardPage({
           </section>
 
           {/* Signed agreements table */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="flex items-center gap-2 text-lg font-semibold">
-                <FileCheck className="h-5 w-5 text-muted-foreground" />
-                Signed agreements
-              </h2>
+          <section className="space-y-4">
+            <div className="flex items-end justify-between gap-2 border-b border-border pb-2">
+              <div>
+                <p className="eyebrow">Section &middot; 03</p>
+                <h2 className="flex items-center gap-2 font-serif text-2xl font-semibold tracking-tight">
+                  <FileCheck className="h-5 w-5 text-muted-foreground" />
+                  Signed agreements
+                </h2>
+              </div>
             </div>
             <Card>
               <CardHeader className="pb-2">
@@ -550,12 +559,15 @@ export default async function DashboardPage({
           </section>
 
           {/* Templates table */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="flex items-center gap-2 text-lg font-semibold">
-                <FileCog className="h-5 w-5 text-muted-foreground" />
-                Templates
-              </h2>
+          <section className="space-y-4">
+            <div className="flex items-end justify-between gap-2 border-b border-border pb-2">
+              <div>
+                <p className="eyebrow">Section &middot; 04</p>
+                <h2 className="flex items-center gap-2 font-serif text-2xl font-semibold tracking-tight">
+                  <FileCog className="h-5 w-5 text-muted-foreground" />
+                  Templates
+                </h2>
+              </div>
             </div>
             <Card>
               <CardHeader className="pb-2">

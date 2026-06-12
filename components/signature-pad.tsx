@@ -29,12 +29,12 @@ export function SignaturePad({ onSave, onClear }: SignaturePadProps) {
 
   return (
     <div className="space-y-3">
-      <div className="relative rounded-md border bg-white dark:bg-slate-950 overflow-hidden">
+      <div className="relative overflow-hidden rounded-sm border border-border bg-card">
         <SignatureCanvas
           ref={sigCanvas}
-          penColor="black"
+          penColor="currentColor"
           canvasProps={{
-            className: "signature-canvas w-full h-40 cursor-crosshair",
+            className: "signature-canvas w-full h-40 cursor-crosshair text-foreground",
           }}
           onEnd={() => setIsEmpty(false)}
         />
@@ -45,11 +45,11 @@ export function SignaturePad({ onSave, onClear }: SignaturePadProps) {
           </Button>
           <Button size="sm" onClick={save} disabled={isEmpty} className="h-8 px-2">
             <Check className="mr-1 h-3.5 w-3.5" />
-            Apply Signature
+            Apply signature
           </Button>
         </div>
       </div>
-      <p className="text-[10px] text-muted-foreground text-center">
+      <p className="text-center text-[11px] text-muted-foreground">
         Use your mouse or touch screen to draw your signature above.
       </p>
     </div>

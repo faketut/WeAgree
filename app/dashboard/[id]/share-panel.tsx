@@ -50,23 +50,25 @@ export function SharePanel({ signUrl, agreementId }: { signUrl: string; agreemen
   }
 
   return (
-    <div className="space-y-4 rounded-lg border border-dashed border-border bg-muted/20 p-4">
-      <p className="text-sm font-semibold">Share for signing</p>
+    <div className="space-y-4 rounded-sm border border-dashed border-border bg-muted/40 p-5">
+      <p className="eyebrow">Share for signing</p>
       <p className="text-xs text-muted-foreground">
         Signers need a GitHub account. Passkey is optional and provides stronger identity proof (
-        <Link href="/settings/passkeys" className="underline">
+        <Link href="/settings/passkeys" className="underline underline-offset-2">
           Settings → Passkeys
         </Link>
         ).
       </p>
       <div className="flex flex-wrap items-start gap-6">
         <div className="flex flex-col items-center gap-2">
-          <QRCodeSVG value={signUrl} size={160} level="M" />
+          <div className="rounded-sm border border-border bg-card p-2">
+            <QRCodeSVG value={signUrl} size={160} level="M" />
+          </div>
           <span className="text-xs text-muted-foreground">Scan to sign</span>
         </div>
         <div className="flex-1 space-y-4">
           <div className="space-y-2">
-            <p className="break-all text-xs font-mono text-muted-foreground bg-muted/50 p-2 rounded border">
+            <p className="break-all rounded-sm border border-border bg-card p-2 font-mono text-xs text-muted-foreground">
               {signUrl}
             </p>
             <Button variant="outline" size="sm" onClick={copyLink} className="w-full sm:w-auto">
@@ -84,9 +86,9 @@ export function SharePanel({ signUrl, agreementId }: { signUrl: string; agreemen
             </Button>
           </div>
 
-          <div className="pt-4 border-t border-dashed border-border/50 space-y-3">
+          <div className="space-y-3 border-t border-dashed border-border pt-4">
             <div className="space-y-2">
-              <Label htmlFor="invite-email" className="text-xs">
+              <Label htmlFor="invite-email" className="eyebrow">
                 Invite by email
               </Label>
               <div className="flex gap-2">
@@ -117,14 +119,16 @@ export function SharePanel({ signUrl, agreementId }: { signUrl: string; agreemen
                   ) : (
                     <Mail className="h-4 w-4" />
                   )}
-                  <span className="ml-2 hidden sm:inline">Send Invite</span>
+                  <span className="ml-2 hidden sm:inline">Send invite</span>
                 </Button>
               </div>
             </div>
-            {emailError && <p className="text-[10px] font-medium text-destructive">{emailError}</p>}
+            {emailError && (
+              <p className="text-xs font-medium text-destructive">{emailError}</p>
+            )}
             {emailSuccess && (
-              <p className="text-[10px] font-medium text-green-600 dark:text-green-400">
-                Invite link sent successfully!
+              <p className="text-xs font-medium text-[hsl(var(--success))]">
+                Invite link sent successfully.
               </p>
             )}
           </div>

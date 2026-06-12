@@ -9,21 +9,24 @@ import { ArrowLeft } from "lucide-react";
 
 export default function NewTemplatePage() {
   return (
-    <main className="min-h-screen bg-muted/30 p-4 md:p-8">
+    <main className="min-h-screen bg-paper p-4 md:p-8">
       <div className="mx-auto max-w-2xl space-y-6">
         <Link
           href="/templates"
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to templates
         </Link>
-        <Card>
-          <CardHeader>
-            <CardTitle>New template</CardTitle>
-            <CardDescription>Create a reusable agreement template.</CardDescription>
+        <Card className="border-border shadow-paper">
+          <CardHeader className="space-y-2 border-b border-border pb-5">
+            <p className="eyebrow">New template</p>
+            <CardTitle className="font-serif text-2xl font-semibold tracking-tight">
+              Create a template
+            </CardTitle>
+            <CardDescription>Reusable agreement boilerplate.</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             <form
               action={async (formData: FormData) => {
                 "use server";

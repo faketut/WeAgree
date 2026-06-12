@@ -27,19 +27,22 @@ export default async function TemplatesPage() {
     .order("created_at", { ascending: false });
 
   return (
-    <main className="min-h-screen bg-muted/30 p-4 md:p-8">
-      <div className="mx-auto max-w-3xl space-y-6">
-        <div className="flex items-center justify-between gap-4">
+    <main className="min-h-screen bg-paper p-4 md:p-8">
+      <div className="mx-auto max-w-3xl space-y-8">
+        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-5">
           <div className="flex items-center gap-4">
-            <Button asChild variant="ghost" size="icon" className="rounded-full">
-              <Link href="/">
+            <Button asChild variant="ghost" size="icon" className="rounded-sm">
+              <Link href="/dashboard">
                 <ArrowLeft className="h-5 w-5" />
-                <span className="sr-only">Back to home</span>
+                <span className="sr-only">Back to dashboard</span>
               </Link>
             </Button>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Templates</h1>
-              <p className="text-muted-foreground">Reusable agreement templates.</p>
+            <div className="space-y-1">
+              <p className="eyebrow">Library</p>
+              <h1 className="font-serif text-3xl font-semibold tracking-tight">Templates</h1>
+              <p className="text-sm text-muted-foreground">
+                Reusable agreement boilerplate for faster drafting.
+              </p>
             </div>
           </div>
           <Button asChild>
@@ -48,11 +51,16 @@ export default async function TemplatesPage() {
         </div>
 
         {templates && templates.length > 0 ? (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             {templates.map((t) => (
-              <Card key={t.id} className="transition-colors hover:bg-muted/50">
+              <Card
+                key={t.id}
+                className="border-border transition-colors duration-150 hover:bg-muted/30"
+              >
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base line-clamp-1">{t.title}</CardTitle>
+                  <CardTitle className="font-serif text-lg font-semibold tracking-tight line-clamp-1">
+                    {t.title}
+                  </CardTitle>
                   <CardDescription>
                     {t.created_at ? new Date(t.created_at as string).toLocaleDateString() : null}
                   </CardDescription>
@@ -69,8 +77,8 @@ export default async function TemplatesPage() {
             ))}
           </div>
         ) : (
-          <Card>
-            <CardContent className="py-6 text-sm text-muted-foreground">
+          <Card className="border-dashed">
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
               No templates yet. Create one to reuse its content when drafting agreements.
             </CardContent>
           </Card>

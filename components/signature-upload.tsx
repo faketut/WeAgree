@@ -58,11 +58,11 @@ export function SignatureUpload({ onSave, onClear }: SignatureUploadProps) {
       {!preview ? (
         <div
           onClick={() => fileInputRef.current?.click()}
-          className="flex flex-col items-center justify-center h-40 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors"
+          className="flex h-40 cursor-pointer flex-col items-center justify-center rounded-sm border-2 border-dashed border-border bg-card transition-colors duration-150 hover:bg-muted/40"
         >
-          <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+          <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
           <p className="text-sm font-medium">Click to upload signature image</p>
-          <p className="text-xs text-muted-foreground mt-1">PNG, JPG up to 1MB</p>
+          <p className="mt-1 text-xs text-muted-foreground">PNG or JPG, up to 1 MB</p>
           <input
             type="file"
             ref={fileInputRef}
@@ -73,17 +73,17 @@ export function SignatureUpload({ onSave, onClear }: SignatureUploadProps) {
         </div>
       ) : (
         <div className="space-y-3">
-          <div className="relative rounded-md border bg-white dark:bg-slate-950 p-4 h-40 flex items-center justify-center overflow-hidden">
+          <div className="relative flex h-40 items-center justify-center overflow-hidden rounded-sm border border-border bg-card p-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={preview}
               alt="Signature preview"
-              className="max-w-full max-h-full object-contain"
+              className="max-h-full max-w-full object-contain dark:invert"
             />
             <Button
               variant="destructive"
               size="icon"
-              className="absolute top-2 right-2 h-7 w-7"
+              className="absolute right-2 top-2 h-7 w-7"
               onClick={clear}
             >
               <X className="h-4 w-4" />
@@ -92,7 +92,7 @@ export function SignatureUpload({ onSave, onClear }: SignatureUploadProps) {
           <div className="flex justify-center">
             <Button size="sm" onClick={save}>
               <Check className="mr-2 h-4 w-4" />
-              Apply Uploaded Signature
+              Apply uploaded signature
             </Button>
           </div>
         </div>

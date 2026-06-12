@@ -49,20 +49,21 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background p-4">
-      <div className="pointer-events-none absolute inset-0 bg-grid opacity-[0.25]" />
-      <div className="pointer-events-none absolute inset-0 bg-spotlight" />
+    <main className="relative flex min-h-screen flex-col items-center justify-center bg-paper p-4">
       <div className="relative w-full max-w-md">
         <div className="mb-8 flex flex-col items-center text-center">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-sm font-semibold tracking-tight"
+            className="group inline-flex items-center gap-2.5"
           >
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-foreground text-background">
+            <span
+              aria-hidden
+              className="inline-flex h-8 w-8 items-center justify-center rounded-sm bg-primary text-primary-foreground shadow-xs transition-transform duration-150 group-hover:scale-[1.04]"
+            >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                width="14"
-                height="14"
+                width="16"
+                height="16"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -70,23 +71,31 @@ export default function LoginPage() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <path d="M20 19.5V8.5a2 2 0 0 0-.586-1.414l-4.5-4.5A2 2 0 0 0 13.5 2H6a2 2 0 0 0-2 2v15.5" />
-                <path d="m18 16-2-1-2 1V4" />
-                <path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20" />
+                <path d="M15 3H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V9z" />
+                <path d="M14 3v6h6" />
+                <path d="M10 13h4" />
+                <path d="M10 17h4" />
               </svg>
             </span>
-            <span>We Agree</span>
+            <span className="font-serif text-lg font-semibold tracking-tight">
+              We Agree<span className="text-primary">.</span>
+            </span>
           </Link>
+          <p className="eyebrow mt-6">Sign in</p>
+          <h1 className="mt-2 font-serif text-3xl font-semibold tracking-tight">
+            Welcome back
+          </h1>
+          <p className="text-pretty mt-3 max-w-sm text-sm text-muted-foreground">
+            Sign in with GitHub to draft and sign agreements. Register a passkey under{" "}
+            <span className="text-foreground">Settings</span> after signing in.
+          </p>
         </div>
-        <Card className="border-border/70 shadow-elevated">
-          <CardHeader className="space-y-1.5 text-center">
-            <CardTitle className="text-xl">Welcome back</CardTitle>
-            <CardDescription className="text-balance">
-              Sign in with GitHub to create and manage agreements. Register a passkey under Settings
-              after signing in.
-            </CardDescription>
+        <Card className="border-border shadow-paper">
+          <CardHeader className="sr-only">
+            <CardTitle>Welcome back</CardTitle>
+            <CardDescription>Sign in with GitHub to continue.</CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col gap-4">
+          <CardContent className="flex flex-col gap-4 pt-6">
             {error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
@@ -114,13 +123,13 @@ export default function LoginPage() {
             </Button>
             <Link
               href="/"
-              className="text-center text-sm text-muted-foreground hover:text-foreground"
+              className="text-center text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               ← Back to home
             </Link>
           </CardContent>
         </Card>
-        <p className="mt-6 text-center text-xs text-muted-foreground">
+        <p className="text-pretty mt-6 text-center text-xs leading-relaxed text-muted-foreground">
           By continuing you agree to use the platform responsibly. Your signatures are bound to your
           device.
         </p>

@@ -123,15 +123,15 @@ export default async function AgreementSharePage({ params }: { params: Promise<{
   }
 
   return (
-    <main className="min-h-screen bg-muted/30 p-4 md:p-8">
+    <main className="min-h-screen bg-paper p-4 md:p-8">
       <div className="mx-auto max-w-3xl space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
+            Back to dashboard
           </Link>
           <Button variant="outline" size="sm" asChild>
             <Link href="/settings/passkeys" className="gap-2">
@@ -140,54 +140,62 @@ export default async function AgreementSharePage({ params }: { params: Promise<{
             </Link>
           </Button>
         </div>
-        <Card>
-          <CardHeader className="space-y-1.5">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <CardTitle className="text-xl">{agreement.title}</CardTitle>
-                <PDFDownloadButton
-                  contentId="agreement-printable-area"
-                  filename={agreement.title.replace(/\s+/g, "_")}
-                  title={agreement.title}
-                />
+        <Card className="border-border shadow-paper">
+          <CardHeader className="space-y-3 border-b border-border pb-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0 space-y-2">
+                <p className="eyebrow">
+                  Agreement &middot; v{versionNumber}
+                  {agreement.finalized_at && (
+                    <> &middot; Finalized {new Date(agreement.finalized_at as string).toLocaleDateString()}</>
+                  )}
+                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <CardTitle className="font-serif text-3xl font-semibold leading-tight tracking-tight">
+                    {agreement.title}
+                  </CardTitle>
+                  <PDFDownloadButton
+                    contentId="agreement-printable-area"
+                    filename={agreement.title.replace(/\s+/g, "_")}
+                    title={agreement.title}
+                  />
+                </div>
+                <CardDescription className="text-pretty">
+                  Created {new Date(agreement.created_at).toLocaleString()}
+                </CardDescription>
               </div>
               <StatusBadge status={agreement.status as AgreementStatus} />
             </div>
-            <CardDescription>
-              Created {new Date(agreement.created_at).toLocaleString()}
-              {" · "}
-              <span className="font-medium">Version {versionNumber}</span>
-              {agreement.finalized_at && (
-                <>
-                  {" · "}
-                  Finalized {new Date(agreement.finalized_at as string).toLocaleString()}
-                </>
-              )}
-            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6" id="agreement-printable-area">
-            <div className="round-lg border bg-muted/30 p-4">
+          <CardContent className="space-y-6 pt-6" id="agreement-printable-area">
+            <div className="rounded-sm border border-border bg-card px-6 py-7 md:px-8 md:py-9 drop-cap">
               <MarkdownRenderer content={content} />
             </div>
             {agreement.status === "signed" && anchor && (
-              <div className="rounded-lg border bg-muted/20 p-4 text-sm space-y-1">
-                <p className="font-medium">Blockchain proof</p>
+              <div className="rounded-sm border border-border bg-muted/40 p-5 text-sm space-y-2">
+                <p className="eyebrow">Blockchain proof</p>
                 <p className="text-muted-foreground text-xs">
-                  {anchor.anchor_status} · {anchor.chain_name}
+                  <span className="text-foreground">{anchor.anchor_status}</span> &middot;{" "}
+                  <span className="text-foreground">{anchor.chain_name}</span>
                 </p>
                 {anchor.transaction_hash && (
-                  <p className="font-mono text-xs break-all">Tx: {anchor.transaction_hash}</p>
+                  <p className="font-mono text-xs break-all text-foreground">
+                    <span className="text-muted-foreground">Tx</span> {anchor.transaction_hash}
+                  </p>
                 )}
                 {anchor.block_number != null && (
-                  <p className="text-xs">Block: {anchor.block_number}</p>
+                  <p className="text-xs">
+                    <span className="text-muted-foreground">Block</span> {anchor.block_number}
+                  </p>
                 )}
                 {anchor.anchored_at && (
                   <p className="text-xs text-muted-foreground">
-                    Anchored: {new Date(anchor.anchored_at).toLocaleString()}
+                    Anchored {new Date(anchor.anchored_at).toLocaleString()}
                   </p>
                 )}
                 <p className="font-mono text-xs break-all text-muted-foreground">
-                  Final proof hash: {anchor.final_proof_hash}
+                  <span className="uppercase tracking-wider">Final proof hash</span>{" "}
+                  <span className="text-foreground">{anchor.final_proof_hash}</span>
                 </p>
                 <div className="pt-2">
                   <Button variant="outline" size="sm" asChild>
@@ -200,9 +208,9 @@ export default async function AgreementSharePage({ params }: { params: Promise<{
               </div>
             )}
             {agreement.status === "signed" && signatures.length > 0 && (
-              <div className="rounded-lg border bg-muted/20 p-4">
-                <p className="mb-2 text-sm font-medium">Signatures</p>
-                <ul className="space-y-2 text-sm">
+              <div className="rounded-sm border border-border bg-muted/40 p-5">
+                <p className="eyebrow mb-3">Signatures</p>
+                <ul className="space-y-3 text-sm">
                   {signatures.map((s, i) => (
                     <li key={i} className="border-b border-border/50 pb-2 last:border-0 last:pb-0">
                       <div className="flex flex-col gap-1">

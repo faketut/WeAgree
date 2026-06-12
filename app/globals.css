@@ -2,81 +2,100 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Design system: Editorial Legal
+ * --------------------------------
+ * Palette : warm paper + deep ink + oxblood accent
+ * Display : Source Serif 4 (headings) / Inter (body) / JetBrains Mono (cryptography)
+ * Mood    : Document gravitas. No gradients. No glow. Hairlines and rules.
+ * See design-system/MASTER.md for the full spec.
+ */
+
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 224 71% 4%;
-    --card: 0 0% 100%;
-    --card-foreground: 224 71% 4%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 224 71% 4%;
-    --primary: 240 6% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 224 71% 4%;
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
-    --accent: 220 14% 96%;
-    --accent-foreground: 224 71% 4%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
-    --success: 142 71% 45%;
-    --warning: 38 92% 50%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 240 6% 10%;
-    --radius: 0.625rem;
+    /* Surfaces */
+    --background: 40 33% 97%;          /* warm paper */
+    --foreground: 24 12% 14%;          /* deep ink */
+    --card: 40 30% 99%;                /* pure paper, slightly lifted */
+    --card-foreground: 24 12% 14%;
+    --popover: 40 30% 99%;
+    --popover-foreground: 24 12% 14%;
+
+    /* Brand: oxblood */
+    --primary: 0 55% 28%;
+    --primary-foreground: 40 30% 97%;
+
+    /* Neutrals */
+    --secondary: 38 22% 92%;
+    --secondary-foreground: 24 12% 14%;
+    --muted: 38 22% 92%;
+    --muted-foreground: 28 8% 38%;
+    --accent: 0 55% 28%;
+    --accent-foreground: 40 30% 97%;
+
+    /* Semantic */
+    --destructive: 0 65% 38%;
+    --destructive-foreground: 40 30% 97%;
+    --success: 142 40% 28%;            /* deep moss */
+    --warning: 32 75% 38%;             /* burnt amber */
+
+    /* Lines */
+    --border: 36 18% 84%;              /* hairline rule */
+    --input: 36 18% 84%;
+    --ring: 0 55% 28%;                 /* oxblood focus */
+
+    --radius: 0.375rem;                /* documental, less SaaS-pill */
   }
 
   @media (prefers-color-scheme: dark) {
     :root:not(.light) {
-      --background: 240 10% 4%;
-      --foreground: 0 0% 98%;
-      --card: 240 8% 6%;
-      --card-foreground: 0 0% 98%;
-      --popover: 240 8% 6%;
-      --popover-foreground: 0 0% 98%;
-      --primary: 0 0% 98%;
-      --primary-foreground: 240 6% 10%;
-      --secondary: 240 4% 12%;
-      --secondary-foreground: 0 0% 98%;
-      --muted: 240 4% 12%;
-      --muted-foreground: 240 5% 65%;
-      --accent: 240 4% 14%;
-      --accent-foreground: 0 0% 98%;
-      --destructive: 0 63% 45%;
-      --destructive-foreground: 0 0% 98%;
-      --success: 142 60% 50%;
-      --warning: 38 92% 55%;
-      --border: 240 4% 16%;
-      --input: 240 4% 16%;
-      --ring: 240 5% 65%;
+      --background: 28 10% 8%;         /* ink night */
+      --foreground: 40 25% 92%;        /* paper cream */
+      --card: 28 10% 11%;
+      --card-foreground: 40 25% 92%;
+      --popover: 28 10% 11%;
+      --popover-foreground: 40 25% 92%;
+      --primary: 0 55% 58%;            /* bordeaux lifted for contrast */
+      --primary-foreground: 28 10% 8%;
+      --secondary: 28 8% 16%;
+      --secondary-foreground: 40 25% 92%;
+      --muted: 28 8% 16%;
+      --muted-foreground: 36 12% 64%;
+      --accent: 0 55% 58%;
+      --accent-foreground: 28 10% 8%;
+      --destructive: 0 60% 50%;
+      --destructive-foreground: 40 30% 96%;
+      --success: 142 35% 50%;
+      --warning: 32 70% 56%;
+      --border: 28 8% 22%;
+      --input: 28 8% 22%;
+      --ring: 0 55% 58%;
     }
   }
 
   /* Explicit dark class wins over media query. Used by the theme toggle. */
   .dark {
-    --background: 240 10% 4%;
-    --foreground: 0 0% 98%;
-    --card: 240 8% 6%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 8% 6%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 6% 10%;
-    --secondary: 240 4% 12%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 4% 12%;
-    --muted-foreground: 240 5% 65%;
-    --accent: 240 4% 14%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 63% 45%;
-    --destructive-foreground: 0 0% 98%;
-    --success: 142 60% 50%;
-    --warning: 38 92% 55%;
-    --border: 240 4% 16%;
-    --input: 240 4% 16%;
-    --ring: 240 5% 65%;
+    --background: 28 10% 8%;
+    --foreground: 40 25% 92%;
+    --card: 28 10% 11%;
+    --card-foreground: 40 25% 92%;
+    --popover: 28 10% 11%;
+    --popover-foreground: 40 25% 92%;
+    --primary: 0 55% 58%;
+    --primary-foreground: 28 10% 8%;
+    --secondary: 28 8% 16%;
+    --secondary-foreground: 40 25% 92%;
+    --muted: 28 8% 16%;
+    --muted-foreground: 36 12% 64%;
+    --accent: 0 55% 58%;
+    --accent-foreground: 28 10% 8%;
+    --destructive: 0 60% 50%;
+    --destructive-foreground: 40 30% 96%;
+    --success: 142 35% 50%;
+    --warning: 32 70% 56%;
+    --border: 28 8% 22%;
+    --input: 28 8% 22%;
+    --ring: 0 55% 58%;
   }
 }
 
@@ -92,29 +111,87 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
-    font-feature-settings: "cv11", "ss01", "ss03";
+    font-feature-settings: "ss01", "cv11";
+  }
+  /* Editorial: serif headings via Source Serif 4. Tighter tracking on display sizes. */
+  h1, h2, h3, h4, .font-display {
+    font-family: var(--font-serif), ui-serif, Georgia, "Times New Roman", serif;
+    font-feature-settings: "lnum", "kern", "liga";
+    letter-spacing: -0.005em;
   }
   ::selection {
-    @apply bg-foreground/15;
+    background-color: hsl(var(--primary) / 0.18);
+    color: hsl(var(--foreground));
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      transition-duration: 0.001ms !important;
+    }
   }
 }
 
 @layer utilities {
-  /* Subtle dot grid for hero/empty surfaces. */
-  .bg-grid {
-    background-image: radial-gradient(hsl(var(--border)) 1px, transparent 1px);
-    background-size: 24px 24px;
-    background-position: -1px -1px;
+  /* Paper texture: very subtle, off-white grain. Use behind hero / blank states. */
+  .bg-paper {
+    background-color: hsl(var(--background));
+    background-image:
+      radial-gradient(hsl(var(--foreground) / 0.025) 0.5px, transparent 0.5px),
+      radial-gradient(hsl(var(--foreground) / 0.02) 0.5px, transparent 0.5px);
+    background-size: 18px 18px, 9px 9px;
+    background-position: 0 0, 4px 4px;
   }
-  /* Soft radial spotlight for landing hero. */
-  .bg-spotlight {
-    background: radial-gradient(
-      ellipse 60% 50% at 50% -10%,
-      hsl(var(--foreground) / 0.06),
-      transparent 70%
-    );
+
+  /* Hairline horizontal rule (editorial divider). */
+  .rule {
+    border-top: 1px solid hsl(var(--border));
   }
+  .rule-double {
+    border-top: 1px solid hsl(var(--border));
+    box-shadow: 0 3px 0 -2px hsl(var(--border));
+  }
+
+  /* Small-caps eyebrow label (section labels, kickers). */
+  .eyebrow {
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    font-size: 0.6875rem;       /* 11px */
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* Drop-cap for the first paragraph of long-form body. Opt-in. */
+  .drop-cap > p:first-of-type::first-letter {
+    font-family: var(--font-serif), ui-serif, Georgia, serif;
+    float: left;
+    font-size: 3.25em;
+    line-height: 0.85;
+    padding: 0.1em 0.12em 0 0;
+    font-weight: 600;
+    color: hsl(var(--primary));
+  }
+
   .text-balance {
     text-wrap: balance;
+  }
+  .text-pretty {
+    text-wrap: pretty;
+  }
+
+  /* Ornamental section divider: a centered dotted line of three glyphs. */
+  .divider-ornament {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: hsl(var(--muted-foreground));
+  }
+  .divider-ornament::before,
+  .divider-ornament::after {
+    content: "";
+    flex: 1;
+    border-top: 1px solid hsl(var(--border));
   }
 }

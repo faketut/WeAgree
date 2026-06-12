@@ -9,7 +9,7 @@ export const metadata = {
 
 export default function PasskeysSettingsPage() {
   return (
-    <main className="min-h-screen bg-muted/30 p-4 md:p-8">
+    <main className="min-h-screen bg-paper p-4 md:p-8">
       <div className="mx-auto max-w-lg space-y-6">
         <Button variant="ghost" size="sm" asChild>
           <Link href="/dashboard" className="gap-2">

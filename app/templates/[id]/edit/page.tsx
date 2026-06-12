@@ -27,21 +27,24 @@ export default async function EditTemplatePage({ params }: { params: Promise<{ i
   if (error || !template) notFound();
 
   return (
-    <main className="min-h-screen bg-muted/30 p-4 md:p-8">
+    <main className="min-h-screen bg-paper p-4 md:p-8">
       <div className="mx-auto max-w-2xl space-y-6">
         <Link
           href="/templates"
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to templates
         </Link>
-        <Card>
-          <CardHeader>
-            <CardTitle>Edit template</CardTitle>
+        <Card className="border-border shadow-paper">
+          <CardHeader className="space-y-2 border-b border-border pb-5">
+            <p className="eyebrow">Template</p>
+            <CardTitle className="font-serif text-2xl font-semibold tracking-tight">
+              Edit template
+            </CardTitle>
             <CardDescription>Update or delete this template.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 pt-6">
             <form
               action={async (formData: FormData) => {
                 "use server";

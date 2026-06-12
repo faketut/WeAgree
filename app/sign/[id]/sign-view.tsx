@@ -188,58 +188,62 @@ export function SignView({
   const _allSlotsFilled = slots.length > 0 && slots.every((slot) => occupiedBySlot.has(slot.index));
 
   return (
-    <main className="min-h-screen bg-muted/30 p-4 md:p-8">
+    <main className="min-h-screen bg-paper p-4 md:p-8">
       <div className="mx-auto max-w-2xl space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>{title}</CardTitle>
-            <CardDescription>
+        <Card className="border-border shadow-paper">
+          <CardHeader className="space-y-3 border-b border-border pb-6">
+            <p className="eyebrow">Agreement &middot; v{versionNumber}</p>
+            <CardTitle className="font-serif text-3xl font-semibold leading-tight tracking-tight">
+              {title}
+            </CardTitle>
+            <CardDescription className="text-pretty">
               {alreadySigned
-                ? "This agreement has been signed."
-                : "Please read the agreement below. Verify content integrity before signing."}
+                ? "This agreement has been signed and recorded."
+                : "Read the agreement below. Content integrity is verified against the canonical hash before you sign."}
             </CardDescription>
             <p className="text-xs text-muted-foreground">
-              Version {versionNumber}. Sign in with GitHub, then confirm with your registered
-              passkey when you sign. Refresh the page to see new signatures.
+              Sign in with GitHub, then confirm with your registered passkey when you sign.
+              Refresh the page to see new signatures.
             </p>
             <span className="sr-only" data-agreement-version-id={agreementVersionId} />
             {!alreadySigned && requiredSignatures > 0 && (
               <p className="text-sm text-muted-foreground">
-                Signatures: {signatures.length} of {requiredSignatures} required
+                Signatures: <span className="font-medium text-foreground">{signatures.length}</span> of{" "}
+                <span className="font-medium text-foreground">{requiredSignatures}</span> required
               </p>
             )}
             {verifyState === "idle" && (
               <Alert>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <AlertDescription>Verifying content…</AlertDescription>
+                <AlertDescription>Verifying content&hellip;</AlertDescription>
               </Alert>
             )}
             {verifyState === "ok" && (
-              <Alert className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30">
-                <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-                <AlertDescription className="text-green-800 dark:text-green-200">
+              <Alert className="border-[hsl(var(--success)/0.35)] bg-[hsl(var(--success)/0.08)] [&>svg]:text-[hsl(var(--success))]">
+                <CheckCircle2 className="h-4 w-4" />
+                <AlertDescription className="text-[hsl(var(--success))]">
                   Content integrity verified.
                 </AlertDescription>
               </Alert>
             )}
             {verifyState === "tampered" && (
-              <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30 [&>svg]:text-amber-600">
+              <Alert className="border-[hsl(var(--warning)/0.40)] bg-[hsl(var(--warning)/0.10)] [&>svg]:text-[hsl(var(--warning))]">
                 <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
+                <AlertDescription className="text-[hsl(var(--warning))]">
                   Content verification failed. This document may have been tampered with. Do not
                   sign.
                 </AlertDescription>
               </Alert>
             )}
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-3">
-              <div className="rounded-lg border bg-muted/30 p-4">
+          <CardContent className="space-y-6 pt-6">
+            <div className="space-y-4">
+              <div className="rounded-sm border border-border bg-card px-6 py-7 md:px-8 md:py-9 drop-cap">
                 <MarkdownRenderer content={content} />
               </div>
               {slots.length > 0 && (
-                <div className="rounded-lg border bg-muted/20 p-3">
-                  <p className="mb-2 text-sm font-medium">Signature spots</p>
+                <div className="rounded-sm border border-border bg-muted/40 p-4">
+                  <p className="eyebrow mb-3">Signature spots</p>
                   <div className="flex flex-wrap gap-2">
                     {slots.map((slot) => {
                       const occupied = occupiedBySlot.get(slot.index);
@@ -253,19 +257,21 @@ export function SignView({
                             setSelectedSlot(isSelected ? null : slot.index);
                           }}
                           className={[
-                            "rounded border px-2 py-1 text-xs",
+                            "rounded-sm border px-2.5 py-1 text-xs transition-colors duration-150",
                             occupied
-                              ? "cursor-not-allowed border-border bg-muted text-muted-foreground"
+                              ? "cursor-not-allowed border-border bg-background text-muted-foreground"
                               : isSelected
                                 ? "border-primary bg-primary/10 text-primary"
-                                : "border-border hover:bg-muted",
+                                : "border-border bg-background hover:bg-muted",
                           ].join(" ")}
                           disabled={!!occupied}
                         >
                           {occupied ? (
                             <>
                               Spot {slot.index + 1}: signed by{" "}
-                              {occupied.signature_display || occupied.signer_name}
+                              <span className="font-medium">
+                                {occupied.signature_display || occupied.signer_name}
+                              </span>
                             </>
                           ) : (
                             <>Spot {slot.index + 1}: available</>
@@ -275,7 +281,7 @@ export function SignView({
                     })}
                   </div>
                   {slots.length > 0 && (
-                    <p className="mt-2 text-xs text-muted-foreground">
+                    <p className="mt-3 text-xs text-muted-foreground">
                       Choose one available spot to place your signature. Once a spot is signed, it
                       cannot be reused.
                     </p>
@@ -285,32 +291,38 @@ export function SignView({
             </div>
 
             {alreadySigned && anchor && (
-              <div className="rounded-lg border bg-muted/20 p-4 text-sm space-y-1">
-                <p className="font-medium">Blockchain proof</p>
+              <div className="rounded-sm border border-border bg-muted/40 p-5 text-sm space-y-2">
+                <p className="eyebrow">Blockchain proof</p>
                 <p className="text-muted-foreground text-xs">
-                  Status: {anchor.anchor_status} · Chain: {anchor.chain_name}
+                  Status: <span className="text-foreground">{anchor.anchor_status}</span> &middot;
+                  Chain: <span className="text-foreground">{anchor.chain_name}</span>
                 </p>
                 {anchor.transaction_hash && (
-                  <p className="font-mono text-xs break-all">Tx: {anchor.transaction_hash}</p>
+                  <p className="font-mono text-xs break-all text-foreground">
+                    <span className="text-muted-foreground">Tx</span> {anchor.transaction_hash}
+                  </p>
                 )}
                 {anchor.block_number != null && (
-                  <p className="text-xs">Block: {anchor.block_number}</p>
+                  <p className="text-xs">
+                    <span className="text-muted-foreground">Block</span> {anchor.block_number}
+                  </p>
                 )}
                 {anchor.anchored_at && (
                   <p className="text-xs text-muted-foreground">
-                    Anchored: {new Date(anchor.anchored_at).toLocaleString()}
+                    Anchored {new Date(anchor.anchored_at).toLocaleString()}
                   </p>
                 )}
                 <p className="font-mono text-xs break-all text-muted-foreground">
-                  Final proof hash: {anchor.final_proof_hash}
+                  <span className="uppercase tracking-wider">Final proof hash</span>{" "}
+                  <span className="text-foreground">{anchor.final_proof_hash}</span>
                 </p>
               </div>
             )}
 
             {signatures.length > 0 && (
-              <div className="rounded-lg border bg-muted/20 p-4">
-                <p className="mb-2 text-sm font-medium">Signatures</p>
-                <ul className="space-y-2 text-sm">
+              <div className="rounded-sm border border-border bg-muted/40 p-5">
+                <p className="eyebrow mb-3">Signatures</p>
+                <ul className="space-y-3 text-sm">
                   {signatures.map((s, i) => (
                     <li key={i} className="border-b border-border/50 pb-2 last:border-0 last:pb-0">
                       <div className="flex flex-col gap-1">
@@ -349,13 +361,13 @@ export function SignView({
             )}
 
             {showSignedSuccess ? (
-              <div className="flex flex-col items-center gap-4 rounded-lg border border-green-200 bg-green-50 p-6 dark:border-green-900 dark:bg-green-950/30">
-                <CheckCircle2 className="h-12 w-12 text-green-600 dark:text-green-400" />
+              <div className="flex flex-col items-center gap-4 rounded-sm border border-[hsl(var(--success)/0.35)] bg-[hsl(var(--success)/0.08)] p-7">
+                <CheckCircle2 className="h-12 w-12 text-[hsl(var(--success))]" />
                 <div className="text-center">
-                  <p className="font-medium text-green-800 dark:text-green-300">
+                  <p className="font-serif text-lg font-semibold text-[hsl(var(--success))]">
                     {signed ? "Signed successfully" : "You have already signed"}
                   </p>
-                  <p className="text-sm text-green-700 dark:text-green-400">
+                  <p className="mt-1 text-sm text-[hsl(var(--success)/0.85)]">
                     {currentUserSignature && !signed
                       ? `You signed on ${new Date(currentUserSignature.signed_at).toLocaleString()}`
                       : "Your signature has been recorded."}
@@ -366,7 +378,7 @@ export function SignView({
                 </Button>
               </div>
             ) : showAlreadySignedNoButton ? (
-              <div className="rounded-lg border bg-muted/50 p-4">
+              <div className="rounded-sm border border-border bg-muted/40 p-5">
                 <p className="text-sm font-medium">This agreement has been signed.</p>
                 <Button asChild variant="outline" className="mt-3">
                   <Link href="/">Back to home</Link>
@@ -375,9 +387,9 @@ export function SignView({
             ) : (
               <>
                 <div className="space-y-4">
-                  <Label>Signature</Label>
+                  <Label className="eyebrow">Your signature</Label>
                   {signatureDataUri ? (
-                    <div className="relative rounded-md border bg-white dark:bg-slate-950 p-6 flex flex-col items-center justify-center">
+                    <div className="relative rounded-sm border border-border bg-card p-6 flex flex-col items-center justify-center">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={signatureDataUri}
