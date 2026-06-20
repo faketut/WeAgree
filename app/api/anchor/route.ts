@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { ethers } from "ethers";
+import { timingSafeEqual } from "node:crypto";
+import { rateLimit, rateLimitKey } from "@/lib/ratelimit";
+import { getBaseUrlFromHeaders } from "@/lib/utils/baseUrl";
 
 const ABI = ["function anchor(bytes32 finalProofHash) external"];
 
@@ -13,12 +16,42 @@ function getBearerToken(req: Request): string | null {
   return m ? m[1].trim() : null;
 }
 
+function timingSafeEq(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
 export async function POST(req: Request) {
+  // Auth: bearer token required. In production, fail closed when not configured.
   const expectedKey = process.env.BLOCKCHAIN_RPC_API_KEY?.trim();
   if (expectedKey) {
     const token = getBearerToken(req);
-    if (!token || token !== expectedKey) return jsonError(401, "Unauthorized");
+    if (!token || !timingSafeEq(token, expectedKey)) return jsonError(401, "Unauthorized");
+  } else if (process.env.NODE_ENV === "production") {
+    return jsonError(500, "Anchor endpoint not configured");
   }
+
+  // Same-origin guard. Reject cross-origin POSTs when Origin is present.
+  const origin = req.headers.get("origin");
+  if (origin) {
+    const expectedOrigin = getBaseUrlFromHeaders(req.headers, new URL(req.url).origin);
+    try {
+      const a = new URL(origin).host;
+      const b = new URL(expectedOrigin).host;
+      if (a !== b) return jsonError(403, "Cross-origin request blocked");
+    } catch {
+      return jsonError(400, "Invalid origin");
+    }
+  }
+
+  // Per-token (or per-IP) rate limit to bound gas-burn abuse.
+  const rlSubject =
+    expectedKey ??
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.headers.get("x-real-ip") ??
+    "anon";
+  const rl = await rateLimit(rateLimitKey("anchor", rlSubject), 60, 60);
+  if (!rl.allowed) return jsonError(429, "Too many anchor requests");
 
   let body: unknown;
   try {

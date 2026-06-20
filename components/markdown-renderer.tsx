@@ -3,6 +3,9 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+// SECURITY: do not add rehype-raw or any HTML-passthrough plugin here.
+// Agreement content is fully attacker-controllable; raw HTML would enable XSS.
+//
 /**
  * Renders Markdown with GFM. Editorial Legal prose:
  *  - Serif headings (Source Serif 4)

@@ -50,8 +50,8 @@ export async function ensureUserKeypair(
 
   try {
     const kp = generateEd25519KeypairPem();
-    const enc = encryptPrivateKeyPem(kp.privateKeyPem);
     const keyVersion = 1;
+    const enc = encryptPrivateKeyPem(kp.privateKeyPem, { userId, keyVersion });
     const { error: insErr } = await supabase.from("user_keypairs").insert({
       user_id: userId,
       algorithm: "ed25519",

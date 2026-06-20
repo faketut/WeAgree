@@ -38,6 +38,12 @@ describe("final-proof", () => {
     expect(computeFinalProofHash(p1)).toBe(computeFinalProofHash(p2));
   });
 
+  it("computeFinalProofHash is independent of input signer order", () => {
+    const a = signer("a", 0);
+    const b = signer("b", 1);
+    expect(computeFinalProofHash(payload([a, b]))).toBe(computeFinalProofHash(payload([b, a])));
+  });
+
   it("computeFinalProofHash changes when content_hash changes", () => {
     const p = payload([signer("a", 0)]);
     const h1 = computeFinalProofHash(p);

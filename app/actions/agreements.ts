@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { rateLimit, rateLimitKey } from "@/lib/ratelimit";
 import { revalidatePath } from "next/cache";
 import { canonicalize } from "@/lib/signing/json-canonical";
-import { kmsEncryptAgreementContent, kmsSign } from "@/lib/signing/kms-client";
+import { kmsEncryptAgreementContent } from "@/lib/signing/kms-client";
 import { decryptPrivateKeyPem, signWithEd25519Pem } from "@/lib/signing/user-keypair";
 import { ensureProfile, ensureUserKeypair } from "@/lib/account/provision";
 import { countSignatureSlots } from "@/lib/signaturePlaceholders";
@@ -538,12 +538,20 @@ export async function signAgreement(
     if (!passkey?.challengeId || !passkey.assertion) {
       return { error: "Passkey confirmation is required to sign." };
     }
-    const v = await verifyPasskeyAssertionForUser(passkey.challengeId, passkey.assertion);
+    // Bind the challenge to the agreement + version the caller is signing,
+    // so an assertion issued for agreement A cannot be replayed against B.
+    const v = await verifyPasskeyAssertionForUser(passkey.challengeId, passkey.assertion, {
+      agreementId,
+      agreementVersionId: versionRow.id as string,
+    });
     if ("error" in v) return { error: v.error };
     webauthnCredentialId = v.credentialId;
     passkeyVerified = true;
   }
 
+  // Server-issued timestamp + UUID nonce. Anti-replay is enforced by the unique
+  // (agreement_version_id, signer_id) and (agreement_version_id, slot_index)
+  // constraints; we keep these fields purely as audit metadata.
   const timestamp = new Date().toISOString();
   const nonce = crypto.randomUUID();
   const signingPayload = {
@@ -556,37 +564,27 @@ export async function signAgreement(
     nonce,
   };
 
-  const now = Date.now();
-  const ts = Date.parse(signingPayload.timestamp);
-  if (!Number.isFinite(ts) || Math.abs(now - ts) > 5 * 60 * 1000) {
-    return { error: "Signature timestamp is outside allowed window." };
-  }
-
   const canonicalJson = canonicalize(signingPayload);
   const dataBytes = Buffer.from(canonicalJson, "utf8");
   const signingPayloadHash = sha256Hex(dataBytes);
   const signerKeyFingerprint = sha256Hex(contentHashForFingerprint(kp.publicKeyPem));
 
-  let signatureBytes: Buffer | null = null;
-  let kmsKeyId: string | null = null;
-
-  if (passkeyVerified) {
-    // Passkey is strong authentication only; signing is still done by user keypair.
-    kmsKeyId = "user-ed25519+passkey";
-  } else {
-    try {
-      const privPem = decryptPrivateKeyPem(kp.encryptedPrivateKey);
-      signatureBytes = signWithEd25519Pem(privPem, dataBytes);
-      kmsKeyId = "user-ed25519";
-    } catch (e) {
-      // Fallback to global KMS signer if user-key signing is unavailable.
-      log.warn("user-key signing failed; falling back to KMS signer", errCtx(e));
-      const { signature, keyId } = await kmsSign(dataBytes);
-      signatureBytes = signature;
-      kmsKeyId = keyId;
-    }
+  // Always sign with the user's Ed25519 key. The proof export advertises the
+  // user's public key PEM and the offline verifier assumes Ed25519, so we must
+  // NOT silently fall back to a different algorithm.
+  let signatureBytes: Buffer;
+  let kmsKeyId: string;
+  try {
+    const privPem = decryptPrivateKeyPem(kp.encryptedPrivateKey, {
+      userId: user.id,
+      keyVersion: kp.keyVersion,
+    });
+    signatureBytes = signWithEd25519Pem(privPem, dataBytes);
+    kmsKeyId = passkeyVerified ? "user-ed25519+passkey" : "user-ed25519";
+  } catch (e) {
+    log.error("user-key signing failed", errCtx(e));
+    return { error: "Signing key unavailable. Please contact support." };
   }
-  if (!signatureBytes) return { error: "Signature generation failed." };
   const signatureHash = sha256Hex(signatureBytes);
 
   const { data: existingSig } = await supabase
@@ -644,7 +642,22 @@ export async function signAgreement(
     ...(annotation != null && annotation.trim() !== "" && { annotation: annotation.trim() }),
   });
 
-  if (insertError) return { error: insertError.message };
+  if (insertError) {
+    // Map unique-constraint races to human-readable errors.
+    const code = (insertError as { code?: string }).code;
+    if (code === "23505") {
+      const msg = insertError.message || "";
+      if (msg.includes("signatures_version_signer_unique")) {
+        return { error: "You have already signed." };
+      }
+      if (msg.includes("signatures_version_slot_unique")) {
+        return {
+          error: "That signature spot has already been used. Please choose another one.",
+        };
+      }
+    }
+    return { error: insertError.message };
+  }
 
   try {
     const { data: agreementAfter } = await supabase
@@ -656,6 +669,31 @@ export async function signAgreement(
       .maybeSingle();
 
     if (!agreementAfter || agreementAfter.status !== "signed") {
+      revalidatePath("/dashboard");
+      revalidatePath(`/sign/${agreementId}`);
+      return { success: true };
+    }
+
+    // Atomic finalize claim: exactly one concurrent signer wins this CAS and
+    // runs the encrypt / anchor / email side-effects. Requires service-role to
+    // bypass RLS on the unconditional UPDATE.
+    let claimed = false;
+    try {
+      const admin = createAdminClient();
+      const { data: claim } = await admin
+        .from("agreements")
+        .update({ finalize_started_at: new Date().toISOString() })
+        .eq("id", agreementId)
+        .eq("status", "signed")
+        .is("finalize_started_at", null)
+        .select("id")
+        .maybeSingle();
+      claimed = !!claim;
+    } catch (e) {
+      log.warn("finalize claim failed; skipping side effects", errCtx(e));
+    }
+
+    if (!claimed) {
       revalidatePath("/dashboard");
       revalidatePath(`/sign/${agreementId}`);
       return { success: true };
