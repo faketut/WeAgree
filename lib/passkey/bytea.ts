@@ -7,6 +7,15 @@ function isBufferLike(v: unknown): v is BufferLike {
   return o.type === "Buffer" && Array.isArray(o.data);
 }
 
+/**
+ * Decode a Postgres `bytea` field as it can be returned by supabase-js across
+ * runtimes (Node Buffer, Uint8Array, hex-encoded `\\x...` string, base64
+ * string, or a JSON `{type:"Buffer",data:[...]}` shape).
+ *
+ * Throws on unrecognized shapes rather than returning an empty buffer — a
+ * silently-empty key would otherwise feed into signature/passkey verifiers and
+ * surface as a confusing downstream error.
+ */
 export function decodeByteaField(v: unknown): Buffer {
   if (Buffer.isBuffer(v)) return v;
   if (v instanceof Uint8Array) return Buffer.from(v);
@@ -24,5 +33,5 @@ export function decodeByteaField(v: unknown): Buffer {
     }
     return Buffer.from(v, "base64");
   }
-  return Buffer.alloc(0);
+  throw new Error("decodeByteaField: unrecognized bytea representation");
 }

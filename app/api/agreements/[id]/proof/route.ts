@@ -9,6 +9,35 @@ import {
 } from "@/lib/anchoring/final-proof";
 import { decodeByteaField } from "@/lib/passkey/bytea";
 
+type SignatureExportRow = {
+  signer_id: string;
+  slot_index: number | null;
+  signing_timestamp: string | null;
+  signing_payload: Record<string, unknown> | null;
+  signing_payload_hash: string | null;
+  signature_bytes: unknown;
+  signature_hash: string | null;
+  signer_key_fingerprint: string | null;
+  signer_key_version: number | null;
+  webauthn_credential_id: string | null;
+  passkey_verified: boolean | null;
+};
+
+type PublicKeyRow = {
+  user_id: string;
+  public_key_pem: string;
+  key_version: number | null;
+};
+
+type AnchorExportRow = {
+  chain_name: string;
+  final_proof_hash: string;
+  transaction_hash: string | null;
+  block_number: number | null;
+  anchored_at: string | null;
+  anchor_status: string;
+};
+
 function jsonError(status: number, message: string) {
   return NextResponse.json({ error: message }, { status });
 }
@@ -67,7 +96,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   if (sErr) return jsonError(500, sErr.message);
 
-  const signers: FinalProofSignerEntry[] = (sigRows ?? []).map((s: any) => ({
+  const sigRowsTyped: SignatureExportRow[] = (sigRows ?? []) as SignatureExportRow[];
+
+  const signers: FinalProofSignerEntry[] = sigRowsTyped.map((s) => ({
     signer_id: s.signer_id,
     slot_index: typeof s.slot_index === "number" ? s.slot_index : null,
     signing_timestamp: s.signing_timestamp ?? null,
@@ -96,27 +127,29 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   let signerPublicKeys: Record<string, { public_key_pem: string; key_version: number }> = {};
   try {
     const admin = createAdminClient();
-    const signerIds = Array.from(new Set((sigRows ?? []).map((s: any) => s.signer_id)));
+    const signerIds = Array.from(new Set(sigRowsTyped.map((s) => s.signer_id)));
     if (signerIds.length > 0) {
       const { data: keys } = await admin
         .from("user_keypairs")
         .select("user_id, public_key_pem, key_version")
         .in("user_id", signerIds);
-      signerPublicKeys =
-        keys?.reduce((acc: any, k: any) => {
-          acc[k.user_id] = {
-            public_key_pem: k.public_key_pem,
-            key_version: Number(k.key_version ?? 1),
-          };
-          return acc;
-        }, {}) ?? {};
+      const keyRows: PublicKeyRow[] = (keys ?? []) as PublicKeyRow[];
+      signerPublicKeys = keyRows.reduce<
+        Record<string, { public_key_pem: string; key_version: number }>
+      >((acc, k) => {
+        acc[k.user_id] = {
+          public_key_pem: k.public_key_pem,
+          key_version: Number(k.key_version ?? 1),
+        };
+        return acc;
+      }, {});
     }
   } catch {
     signerPublicKeys = {};
   }
 
   // Anchor receipt if exists
-  let anchor: any = null;
+  let anchor: AnchorExportRow | null = null;
   try {
     const admin = createAdminClient();
     const { data: arow } = await admin
@@ -126,7 +159,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       )
       .eq("agreement_version_id", versionId)
       .maybeSingle();
-    if (arow) anchor = arow;
+    if (arow) anchor = arow as AnchorExportRow;
   } catch {
     anchor = null;
   }
@@ -138,7 +171,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     final_proof_hash: finalProofHash,
     signer_list_hash: signerListHash,
     payload,
-    signatures: (sigRows ?? []).map((s: any) => ({
+    signatures: sigRowsTyped.map((s) => ({
       signer_id: s.signer_id,
       slot_index: typeof s.slot_index === "number" ? s.slot_index : null,
       passkey_verified: !!s.passkey_verified,

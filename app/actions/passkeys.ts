@@ -201,7 +201,11 @@ export async function beginPasskeySignForAgreement(agreementId: string) {
 
 export async function verifyPasskeyAssertionForUser(
   challengeId: string,
-  assertion: AuthenticationResponseJSON
+  assertion: AuthenticationResponseJSON,
+  expected?: {
+    agreementId?: string;
+    agreementVersionId?: string;
+  }
 ): Promise<{ ok: true; credentialId: string; newCounter: number } | { error: string }> {
   const supabase = await createClient();
   const {
@@ -224,9 +228,23 @@ export async function verifyPasskeyAssertionForUser(
   }
 
   const meta = row.metadata as {
+    agreement_id?: string;
     agreement_version_id?: string;
     content_hash?: string;
   } | null;
+
+  // Cross-agreement reuse guard: the challenge MUST have been issued for the
+  // specific agreement/version the caller is acting on.
+  if (expected?.agreementId && meta?.agreement_id !== expected.agreementId) {
+    return { error: "Passkey challenge does not match this agreement." };
+  }
+  if (
+    expected?.agreementVersionId &&
+    meta?.agreement_version_id !== expected.agreementVersionId
+  ) {
+    return { error: "Passkey challenge does not match this agreement version." };
+  }
+
   if (meta?.agreement_version_id && meta.content_hash) {
     const { data: live } = await supabase
       .from("agreement_versions")

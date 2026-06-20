@@ -160,12 +160,16 @@ export default async function DashboardPage({
 }) {
   const sp = await searchParams;
   const searchRaw = sp.search;
-  const search =
+  const searchInput =
     typeof searchRaw === "string"
       ? searchRaw.trim()
       : Array.isArray(searchRaw)
         ? (searchRaw[0] ?? "").trim()
         : "";
+
+  // Strip ilike wildcards/escape characters and clamp length to avoid
+  // accidental table-scans and pathological patterns.
+  const search = searchInput.replace(/[%_\\]/g, "").slice(0, 100);
 
   const draftsPage = parsePage(sp.draftsPage);
   const pendingPage = parsePage(sp.pendingPage);

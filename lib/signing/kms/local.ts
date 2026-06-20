@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import type { KmsAdapter } from "./interface";
+import { log } from "@/lib/log";
 
 /**
  * Local / dev KMS adapter.
@@ -24,8 +25,8 @@ export class LocalKmsAdapter implements KmsAdapter {
     }
 
     if (process.env.NODE_ENV === "production") {
-      console.error(
-        "[kms-client] SIGNING_PRIVATE_KEY_PEM is unset in production; refusing to use ephemeral dev key."
+      log.error(
+        "SIGNING_PRIVATE_KEY_PEM is unset in production; refusing to use ephemeral dev key."
       );
       throw new Error(
         "SIGNING_PRIVATE_KEY_PEM must be configured in production. See README › Production checklist."

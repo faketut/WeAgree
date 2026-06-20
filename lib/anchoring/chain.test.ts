@@ -74,7 +74,7 @@ describe("submitFinalProofHash", () => {
     await expect(submitFinalProofHash("aa")).rejects.toThrow(/503/);
   });
 
-  it("falls back gracefully when body is not JSON", async () => {
+  it("throws when the body is not JSON", async () => {
     process.env.BLOCKCHAIN_RPC_URL = "https://anchor.example/api";
     process.env.BLOCKCHAIN_CHAIN_NAME = "custom-chain";
     fetchMock.mockResolvedValue({
@@ -82,8 +82,16 @@ describe("submitFinalProofHash", () => {
       status: 200,
       text: () => Promise.resolve("not json"),
     });
-    const res = await submitFinalProofHash("aa");
-    expect(res.chainName).toBe("custom-chain");
-    expect(res.transactionHash).toBe("");
+    await expect(submitFinalProofHash("aa")).rejects.toThrow(/invalid JSON/i);
+  });
+
+  it("throws when the body has no transaction_hash", async () => {
+    process.env.BLOCKCHAIN_RPC_URL = "https://anchor.example/api";
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve(JSON.stringify({ chain_name: "x" })),
+    });
+    await expect(submitFinalProofHash("aa")).rejects.toThrow(/transaction_hash/);
   });
 });

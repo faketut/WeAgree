@@ -67,7 +67,25 @@ function main() {
     die("Invalid proof file: missing payload/signatures.");
   }
 
-  const recomputedFinal = sha256Hex(canonicalize(proof.payload));
+  // Normalize signer ordering to match `computeFinalProofHash`'s deterministic
+  // sort (by slot_index, then signer_id). This keeps the verifier in sync with
+  // the server even if the proof export wrote signers in a different order.
+  function sortSigners(signers) {
+    return [...signers].sort((a, b) => {
+      const ai = a.slot_index ?? 0;
+      const bi = b.slot_index ?? 0;
+      if (ai !== bi) return ai - bi;
+      if (a.signer_id < b.signer_id) return -1;
+      if (a.signer_id > b.signer_id) return 1;
+      return 0;
+    });
+  }
+
+  const normalizedPayload = {
+    ...proof.payload,
+    signers: sortSigners(proof.payload.signers || []),
+  };
+  const recomputedFinal = sha256Hex(canonicalize(normalizedPayload));
   if (recomputedFinal !== proof.final_proof_hash) {
     die(
       `final_proof_hash mismatch.\n` +
